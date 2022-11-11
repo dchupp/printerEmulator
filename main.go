@@ -5,7 +5,9 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"net/http"
 	"os"
+	"strings"
 	"time"
 )
 
@@ -73,7 +75,8 @@ func handleRequest(conn net.Conn, width string, height string) {
 		}
 		break
 	}
-	for _, l := range lines {
-		fmt.Println(l)
-	}
+
+	messageString := strings.Join(lines, "")
+	fmt.Println(messageString)
+	resp, err := http.Post(fmt.Sprintf("http://api.labelary.com/v1/printers/8dpmm/labels/%sx%s/0/"))
 }
