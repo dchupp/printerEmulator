@@ -28,6 +28,9 @@ func main() {
 	// Close the listener when the application closes.
 	defer l.Close()
 	reader := bufio.NewReader(os.Stdin)
+	fmt.Println("Github: https://github.com/dchupp/printerEmulator")
+	fmt.Println("_________________________________________________")
+	fmt.Println()
 	fmt.Println("Starting Printer Emulator.....")
 	fmt.Println("Printer Emulation Settings:")
 	fmt.Println("Width of label (in):")
@@ -55,6 +58,7 @@ func main() {
 		// Handle connections in a new goroutine.
 		go handleRequest(conn, width, height)
 	}
+
 }
 
 // Handles incoming requests.
@@ -120,5 +124,6 @@ func SendToLabelary(zpl string, width string, height string) error {
 	if err != nil {
 		return err
 	}
+	fmt.Printf("%s created!", fname)
 	return nil
 }
