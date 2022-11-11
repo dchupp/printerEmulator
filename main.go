@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"context"
 	"fmt"
 	"io"
 	"net"
@@ -31,8 +32,18 @@ func main() {
 	fmt.Println("Printer Emulation Settings:")
 	fmt.Println("Width of label (in):")
 	width, err := reader.ReadString('\n')
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
+	width = strings.Replace(width, "\r\n", "", -1)
 	fmt.Println("Height of Label (in)")
 	height, err := reader.ReadString('\n')
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
+	height = strings.Replace(height, "\r\n", "", -1)
 	fmt.Println("Listening on " + CONN_HOST + ":" + CONN_PORT + " for print jobs")
 	for {
 		// Listen for an incoming connection.
@@ -57,26 +68,57 @@ func handleRequest(conn net.Conn, width string, height string) {
 	timeoutDuration := 5 * time.Second
 	bufferReader := bufio.NewReader(conn)
 	var lines []string
+
+	conn.SetReadDeadline(time.Now().Add(timeoutDuration))
+
 	for {
-
-		conn.SetReadDeadline(time.Now().Add(timeoutDuration))
-
-		for {
-			line, err := bufferReader.ReadString('\n')
-			if err != nil {
-				lines = append(lines, line)
-				if err != io.EOF {
-					fmt.Println(err)
-				}
-				break
-			}
+		line, err := bufferReader.ReadString('\n')
+		if err != nil {
 			lines = append(lines, line)
-
+			if err != io.EOF {
+				fmt.Println(err)
+			}
+			break
 		}
-		break
+		lines = append(lines, line)
+
 	}
 
 	messageString := strings.Join(lines, "")
 	fmt.Println(messageString)
-	resp, err := http.Post(fmt.Sprintf("http://api.labelary.com/v1/printers/8dpmm/labels/%sx%s/0/"))
+	err := SendToLabelary(messageString, width, height)
+	if err != nil {
+		fmt.Println(err)
+	}
+}
+
+func SendToLabelary(zpl string, width string, height string) error {
+
+	req, err := http.NewRequestWithContext(context.TODO(), "POST", fmt.Sprintf("http://api.labelary.com/v1/printers/8dpmm/labels/%sx%s/0/", width, height), strings.NewReader(zpl))
+	if err != nil {
+		fmt.Printf("client: could not create request: %s\n", err)
+		return err
+	}
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Set("Accept", "image/png")
+	client := http.Client{
+		Timeout: 30 * time.Second,
+	}
+	res, err := client.Do(req)
+	if err != nil {
+		return err
+	}
+	fname := fmt.Sprintf("label-print-%d_%d_%d-%d-%d-%d.png", time.Now().Month(), time.Now().Day(), time.Now().Year(), time.Now().Hour(), time.Now().Minute(), time.Now().Second())
+
+	f, err := os.Create(fname)
+	if err != nil {
+		return err
+	}
+	defer res.Body.Close()
+	_, err = io.Copy(f, res.Body)
+
+	if err != nil {
+		return err
+	}
+	return nil
 }
