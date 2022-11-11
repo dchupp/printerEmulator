@@ -115,6 +115,7 @@ func SendToLabelary(zpl string, width string, height string) error {
 	fname := fmt.Sprintf("label-print-%d_%d_%d-%d-%d-%d.png", time.Now().Month(), time.Now().Day(), time.Now().Year(), time.Now().Hour(), time.Now().Minute(), time.Now().Second())
 
 	f, err := os.Create(fname)
+
 	if err != nil {
 		return err
 	}
@@ -125,5 +126,6 @@ func SendToLabelary(zpl string, width string, height string) error {
 		return err
 	}
 	fmt.Printf("%s created!", fname)
+	defer f.Close()
 	return nil
 }
