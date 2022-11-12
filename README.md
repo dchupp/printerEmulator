@@ -10,7 +10,7 @@ This will create a png sample of your label at the location that you ran the emu
 Download the latest printerEmulator.exe from the https://github.com/dchupp/printerEmulator/releases
 of the project. This is the place where all of the latest builds of the project are ready to use.
 
-Once you have it downloaded open the .exe and setup the printer media size for your print.
+Once you have it downloaded open the .exe and setup the printer media size for your print and it's ready to use once your printer setup is complete.
 ## Installation of the Local Printer
 You will need to install a printer by ip address to your computer to make use of the emulator.
 
