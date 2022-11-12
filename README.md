@@ -2,7 +2,7 @@
 
 ## Description
 This is a ZPL command line emulation tool. This allows you to quickly preview ZPL labels without having to print and waste labels during label design.
-This uses the publically available APIs at http://labelary.com.
+This uses the publicly available APIs at http://labelary.com.
 
 This will create a png sample of your label at the location that you ran the emulation tool.
 
