@@ -1,27 +1,28 @@
-# Printer Emulator
+# Wails Template Quasar (JS)
 
-## Description
-This is a ZPL command line emulation tool. This allows you to quickly preview ZPL labels without having to print and waste labels during label design.
-This uses the publicly available APIs at http://labelary.com.
+## About
 
-This will create a png sample of your label at the location that you ran the emulation tool.
+- This project is a template for [wails](https://wails.io/)
+- It utilizes the [quasar](https://quasar.dev/) framework.
+- To generate the frontend the following quasar options were used
+  - Quasar V2 (Vue 3)
+  - Javascript
+  - Quasar App CLI with Vite
+  - Sass with SCSS syntax
+  - ESLint + Pinia
+  - Prettier ESLint preset
 
-## Getting Started
-Download the latest printerEmulator.exe from the https://github.com/dchupp/printerEmulator/releases
-of the project. This is the place where all of the latest builds of the project are ready to use.
 
-Once you have it downloaded open the .exe and setup the printer media size for your print and it's ready to use once your printer setup is complete.
-## Installation of the Local Printer
-You will need to install a printer by ip address to your computer to make use of the emulator.
+## Live Development
 
-### ip address: 127.0.0.1  port: 9100
+To run in live development mode, run `wails dev` in the project directory. In another terminal, go into the `frontend`
+directory and run `npm run dev`. The frontend dev server will run on http://localhost:34115. Connect to this in your
+browser and connect to your application.
 
-You install this as a ZPL printer the link below is how you install a printer in windows 10/11
-https://www.tomshardware.com/how-to/add-printer-windows-11
+> Note: The quasar dev server is manually configured to run on port :5173
+> in order to properly work with wails.
+> If this needs to be changed, please adjust the quasar.conf.js and wails.json with the new port
 
-## Driver Selection
-It doesn't matter which driver you choose as long as it is a ZPL driver from zebra.
+## Building
 
-## Driver installation
-If you are not sure if you have drivers for a zebra printer the simplest way to install the driver pack is to download and install the zebra printer utilities here:
-https://www.zebra.com/us/en/support-downloads/printer-software/printer-setup-utilities.html
+To build a redistributable, production mode package, use `wails build`.
