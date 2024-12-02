@@ -1,131 +1,92 @@
 package main
 
 import (
-	"bufio"
-	"context"
-	"fmt"
-	"io"
-	"net"
-	"net/http"
-	"os"
-	"strings"
-	"time"
+	"embed"
+	"log"
+
+	"github.com/wailsapp/wails/v2"
+	"github.com/wailsapp/wails/v2/pkg/logger"
+	"github.com/wailsapp/wails/v2/pkg/options"
+	"github.com/wailsapp/wails/v2/pkg/options/assetserver"
+	"github.com/wailsapp/wails/v2/pkg/options/mac"
+	"github.com/wailsapp/wails/v2/pkg/options/windows"
 )
 
-const (
-	CONN_HOST = "127.0.0.1"
-	CONN_PORT = "9100"
-	CONN_TYPE = "tcp"
-)
+//go:embed all:frontend/dist/spa
+var assets embed.FS
+
+//go:embed build/appicon.png
+var icon []byte
 
 func main() {
-	// Listen for incoming connections.
-	l, err := net.Listen(CONN_TYPE, CONN_HOST+":"+CONN_PORT)
-	if err != nil {
-		fmt.Println("Error listening:", err.Error())
-		os.Exit(1)
-	}
-	// Close the listener when the application closes.
-	defer l.Close()
-	reader := bufio.NewReader(os.Stdin)
-	fmt.Println("Github: https://github.com/dchupp/printerEmulator")
-	fmt.Println("_________________________________________________")
-	fmt.Println()
-	fmt.Println("Starting Printer Emulator.....")
-	fmt.Println("Printer Emulation Settings:")
-	fmt.Println("Width of label (in):")
-	width, err := reader.ReadString('\n')
-	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
-	}
-	width = strings.Replace(width, "\r\n", "", -1)
-	fmt.Println("Height of Label (in)")
-	height, err := reader.ReadString('\n')
-	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
-	}
-	height = strings.Replace(height, "\r\n", "", -1)
-	fmt.Println("Listening on " + CONN_HOST + ":" + CONN_PORT + " for print jobs")
-	for {
-		// Listen for an incoming connection.
-		conn, err := l.Accept()
-		if err != nil {
-			fmt.Println("Error accepting: ", err.Error())
-			os.Exit(1)
-		}
-		// Handle connections in a new goroutine.
-		go handleRequest(conn, width, height)
-	}
+	// Create an instance of the app structure
+	app := NewApp()
+	// tcp := app.NewTCPServer()
+	DPI.Description = "8 dpmm (203 dpi)"
+	DPI.Dpi = 8
+	// app.tcp = tcp
+	// defer app.tcp.Stop()
 
-}
-
-// Handles incoming requests.
-func handleRequest(conn net.Conn, width string, height string) {
-
-	// Close connection when this function ends
-	defer func() {
-		conn.Close()
-	}()
-
-	timeoutDuration := 5 * time.Second
-	bufferReader := bufio.NewReader(conn)
-	var lines []string
-
-	conn.SetReadDeadline(time.Now().Add(timeoutDuration))
-
-	for {
-		line, err := bufferReader.ReadString('\n')
-		if err != nil {
-			lines = append(lines, line)
-			if err != io.EOF {
-				fmt.Println(err)
-			}
-			break
-		}
-		lines = append(lines, line)
-
-	}
-
-	messageString := strings.Join(lines, "")
-	fmt.Println(messageString)
-	err := SendToLabelary(messageString, width, height)
-	if err != nil {
-		fmt.Println(err)
-	}
-}
-
-func SendToLabelary(zpl string, width string, height string) error {
-
-	req, err := http.NewRequestWithContext(context.TODO(), "POST", fmt.Sprintf("http://api.labelary.com/v1/printers/8dpmm/labels/%sx%s/0/", width, height), strings.NewReader(zpl))
-	if err != nil {
-		fmt.Printf("client: could not create request: %s\n", err)
-		return err
-	}
-	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	req.Header.Set("Accept", "image/png")
-	client := http.Client{
-		Timeout: 30 * time.Second,
-	}
-	res, err := client.Do(req)
-	if err != nil {
-		return err
-	}
-	fname := fmt.Sprintf("label-print-%d_%d_%d-%d-%d-%d.png", time.Now().Month(), time.Now().Day(), time.Now().Year(), time.Now().Hour(), time.Now().Minute(), time.Now().Second())
-
-	f, err := os.Create(fname)
+	// Create application with options
+	err := wails.Run(&options.App{
+		Title:             "Printer_Emulator",
+		Width:             1024,
+		Height:            768,
+		MinWidth:          1024,
+		MinHeight:         768,
+		MaxWidth:          1280,
+		MaxHeight:         800,
+		DisableResize:     false,
+		Fullscreen:        false,
+		Frameless:         false,
+		StartHidden:       false,
+		HideWindowOnClose: false,
+		BackgroundColour:  &options.RGBA{R: 255, G: 255, B: 255, A: 255},
+		AssetServer: &assetserver.Options{
+			Assets: assets,
+		},
+		Menu:             nil,
+		Logger:           nil,
+		LogLevel:         logger.DEBUG,
+		OnStartup:        app.startup,
+		OnDomReady:       app.domReady,
+		OnBeforeClose:    app.beforeClose,
+		OnShutdown:       app.shutdown,
+		WindowStartState: options.Normal,
+		Bind: []interface{}{
+			app,
+		},
+		// Windows platform specific options
+		Windows: &windows.Options{
+			WebviewIsTransparent: false,
+			WindowIsTranslucent:  false,
+			DisableWindowIcon:    false,
+			// DisableFramelessWindowDecorations: false,
+			WebviewUserDataPath: "",
+			ZoomFactor:          1.0,
+		},
+		// Mac platform specific options
+		Mac: &mac.Options{
+			TitleBar: &mac.TitleBar{
+				TitlebarAppearsTransparent: false,
+				HideTitle:                  false,
+				HideTitleBar:               false,
+				FullSizeContent:            false,
+				UseToolbar:                 false,
+				HideToolbarSeparator:       true,
+			},
+			Appearance:           mac.NSAppearanceNameDarkAqua,
+			WebviewIsTransparent: true,
+			WindowIsTranslucent:  true,
+			About: &mac.AboutInfo{
+				Title:   "Printer_Emulator",
+				Message: "",
+				Icon:    icon,
+			},
+		},
+	})
 
 	if err != nil {
-		return err
+		log.Fatal(err)
 	}
-	defer res.Body.Close()
-	_, err = io.Copy(f, res.Body)
-
-	if err != nil {
-		return err
-	}
-	fmt.Printf("%s created!", fname)
-	defer f.Close()
-	return nil
 }

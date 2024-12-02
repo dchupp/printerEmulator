@@ -1,0 +1,15 @@
+{
+	"fixed": {
+		"file_version": "{{.Info.ProductVersion}}"
+	},
+	"info": {
+		"0000": {
+			"ProductVersion": "2.0",
+			"CompanyName": "David Chupp",
+			"FileDescription": "ZPL Printer Emulator",
+			"LegalCopyright": "{{.Info.Copyright}}",
+			"ProductName": "ZPL Printer Emulator",
+			"Comments": "Be safe out there in the tall grass. Take this emulator with you!"
+		}
+	}
+}

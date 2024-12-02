@@ -2,3 +2,5 @@ PrinterEmulator-Linux.exe
 PrinterEmulator-Mac.exe
 PrinterEmulator-Windows.exe
 PrinterEmulator-OSX.exe
+build/bin/Printer Emulator-amd64-installer.exe
+build/bin/Printer Emulator.exe
