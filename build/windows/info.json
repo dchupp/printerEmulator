@@ -4,12 +4,12 @@
 	},
 	"info": {
 		"0000": {
-			"ProductVersion": "{{.Info.ProductVersion}}",
-			"CompanyName": "{{.Info.CompanyName}}",
-			"FileDescription": "{{.Info.ProductName}}",
+			"ProductVersion": "2.0",
+			"CompanyName": "David Chupp",
+			"FileDescription": "ZPL Printer Emulator",
 			"LegalCopyright": "{{.Info.Copyright}}",
-			"ProductName": "{{.Info.ProductName}}",
-			"Comments": "{{.Info.Comments}}"
+			"ProductName": "ZPL Printer Emulator",
+			"Comments": "Be safe out there in the tall grass. Take this emulator with you!"
 		}
 	}
 }
