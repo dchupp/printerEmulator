@@ -5,11 +5,11 @@ This is a ZPL command line gui
 Once you have it downloaded open the .exe and setup the printer media size for your print and it's ready to use once your printer setup is complete.
 ![image](https://github.com/user-attachments/assets/560add85-fa33-4368-957e-d5fb2afd7f9e)
 
-#Step 1
+# Step 1
 Download page for the application:
 https://github.com/dchupp/printerEmulator/releases/
 
-#Step 2
+# Step 2
 
 ## Driver installation
 If you are not sure if you have drivers for a zebra printer the simplest way to install the driver pack is to download and install the zebra printer utilities here:
