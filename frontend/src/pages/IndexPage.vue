@@ -23,6 +23,12 @@
                 <q-icon name="photo_size_select_small" />
               </template>
             </q-select>
+
+            <q-select v-model="Rotation" :options="rotationOptions" label="Print Rotation">
+              <template v-slot:prepend>
+                <q-icon name="rotate_90_degrees_cw" />
+              </template>
+            </q-select>
             <q-input v-if="PrinterOn == false" color="purple-12" type="number" v-model="PrinterPort"
               label="Printer Port">
               <template v-slot:prepend>
@@ -63,7 +69,7 @@
               <!-- eslint-disable -->
 
               <q-card v-for="print in Prints" class="q-ma-sm justify-center">
-                <img class="justify-center" style="width: 35vw;" :src="`data:image/png;base64,${print}`" />
+                <img class="justify-center" style="width: fit-content;" :src="`data:image/png;base64,${print}`" />
               </q-card>
               <!-- eslint-enable -->
 
@@ -76,7 +82,7 @@
 </template>
 
 <script setup>
-import { GetHeight, GetPrinterPort, GetWidth, GetPrinterRunStatus, SetPrintDirectory, UpdateHeight, UpdatePrinterPort, UpdatePrinterDPI, GetPrinterDPI, UpdateWidth, StartPrinterServer, StopPrintServer, UpdateSave } from 'app/wailsjs/go/main/App';
+import { GetHeight, GetPrinterPort, GetWidth, GetPrinterRunStatus, SetPrintDirectory, UpdateHeight, UpdatePrinterPort, UpdatePrinterDPI, GetPrinterDPI, UpdateWidth, StartPrinterServer, StopPrintServer, UpdateSave, GetPrinterRotation, SetPrinterRotation } from 'app/wailsjs/go/main/App';
 import { onMounted, ref, watch } from 'vue';
 import { EventsOn } from "app/wailsjs/runtime/runtime";
 const block = ref(false)
@@ -91,6 +97,10 @@ const PrinterDPI = ref({
   desc: '8 dpmm (203 dpi)'
 })
 const Prints = ref([])
+
+const Rotation = ref(0)
+
+const rotationOptions = [0, 90, 180, 270]
 
 // onMounted
 const options = [
@@ -115,6 +125,7 @@ const options = [
 onMounted(async () => {
   await GetPrinterSetPoints()
   await CheckPrinterStatus()
+  await GetRotation()
 })
 
 EventsOn("NewPrint", function (data) {
@@ -140,6 +151,14 @@ async function GetSaveFileLocation() {
   await SetPrintDirectory().then((result) => {
     if (result != null) {
       SavePath.value = result
+      return
+    }
+  });
+}
+async function GetRotation() {
+  await GetPrinterRotation().then((result) => {
+    if (result != null) {
+      Rotation.value = result
       return
     }
   });
@@ -189,11 +208,9 @@ async function GetPrinterSetPoints() {
 watch(PrintWidth, async () => {
   await UpdateWidth(parseInt(PrintWidth.value))
 })
-// watch(PrinterOn, async () => {
-//   if (block.value == true) {
-//     block.value == false
-//   }
-// })
+watch(Rotation, async () => {
+  await SetPrinterRotation(Rotation.value)
+})
 watch(PrintHeight, async () => {
   await UpdateHeight(parseInt(PrintHeight.value))
 })

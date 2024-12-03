@@ -30,12 +30,12 @@ func main() {
 	// Create application with options
 	err := wails.Run(&options.App{
 		Title:             "Printer_Emulator",
-		Width:             1024,
-		Height:            768,
-		MinWidth:          1024,
-		MinHeight:         768,
-		MaxWidth:          1280,
-		MaxHeight:         800,
+		Width:             800,
+		Height:            600,
+		MinWidth:          800,
+		MinHeight:         580,
+		MaxWidth:          4096,
+		MaxHeight:         4096,
 		DisableResize:     false,
 		Fullscreen:        false,
 		Frameless:         false,
@@ -63,7 +63,9 @@ func main() {
 			DisableWindowIcon:    false,
 			// DisableFramelessWindowDecorations: false,
 			WebviewUserDataPath: "",
-			ZoomFactor:          1.0,
+			ZoomFactor:          0.90,
+			// IsZoomControlEnabled enables the zoom factor to be changed by the user.
+			// IsZoomControlEnabled: true,
 		},
 		// Mac platform specific options
 		Mac: &mac.Options{
