@@ -18,6 +18,10 @@ export function GetPrinterPort() {
   return window['go']['main']['App']['GetPrinterPort']();
 }
 
+export function GetPrinterRotation() {
+  return window['go']['main']['App']['GetPrinterRotation']();
+}
+
 export function GetPrinterRunStatus() {
   return window['go']['main']['App']['GetPrinterRunStatus']();
 }
@@ -36,6 +40,10 @@ export function SendToLabelary(arg1, arg2, arg3) {
 
 export function SetPrintDirectory() {
   return window['go']['main']['App']['SetPrintDirectory']();
+}
+
+export function SetPrinterRotation(arg1) {
+  return window['go']['main']['App']['SetPrinterRotation'](arg1);
 }
 
 export function StartPrinterServer() {

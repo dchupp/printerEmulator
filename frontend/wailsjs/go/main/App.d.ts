@@ -10,6 +10,8 @@ export function GetPrinterDPI():Promise<main.PrinterDPI>;
 
 export function GetPrinterPort():Promise<number>;
 
+export function GetPrinterRotation():Promise<number>;
+
 export function GetPrinterRunStatus():Promise<boolean>;
 
 export function GetWidth():Promise<number>;
@@ -19,6 +21,8 @@ export function NewTCPServer():Promise<main.TCPServer>;
 export function SendToLabelary(arg1:string,arg2:string,arg3:string):Promise<void>;
 
 export function SetPrintDirectory():Promise<string>;
+
+export function SetPrinterRotation(arg1:number):Promise<void>;
 
 export function StartPrinterServer():Promise<void>;
 

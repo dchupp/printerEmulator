@@ -19,16 +19,17 @@ import (
 )
 
 var (
-	CONN_HOST   = "127.0.0.1"
-	CONN_PORT   = 9100
-	CONN_TYPE   = "tcp"
-	PrintWidth  = 4
-	PrintHeight = 6
-	StopRun     = false
-	Running     = false
-	SaveToFile  = false
-	FilePath    = ""
-	DPI         PrinterDPI
+	CONN_HOST     = "127.0.0.1"
+	CONN_PORT     = 9100
+	CONN_TYPE     = "tcp"
+	PrintWidth    = 4
+	PrintHeight   = 6
+	StopRun       = false
+	Running       = false
+	SaveToFile    = false
+	FilePath      = ""
+	DPI           PrinterDPI
+	PrintRotation = 0
 )
 
 type TCPServer struct {
@@ -132,6 +133,7 @@ func (a *App) SendToLabelary(zpl string, width string, height string) error {
 	}
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	req.Header.Set("Accept", "image/png")
+	req.Header.Set("X-Rotation", strconv.Itoa(PrintRotation))
 	client := http.Client{
 		Timeout: 30 * time.Second,
 	}

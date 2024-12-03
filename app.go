@@ -87,6 +87,15 @@ func (a *App) GetPrinterRunStatus() bool {
 func (a *App) UpdatePrinterDPI(dpi PrinterDPI) {
 	DPI = dpi
 }
+
+func (a *App) GetPrinterRotation() int {
+	return PrintRotation
+}
+
+func (a *App) SetPrinterRotation(rotation int) {
+	PrintRotation = rotation
+}
+
 func (a *App) GetPrinterDPI() PrinterDPI {
 	return DPI
 }
