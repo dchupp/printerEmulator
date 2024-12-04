@@ -155,7 +155,7 @@ func (a *App) SendToLabelary(zpl string, width string, height string) error {
 	if SaveToFile == false {
 		return nil
 	}
-	fname := fmt.Sprintf("%s\\label-print-%d_%d_%d-%d-%d-%d.png", FilePath, time.Now().Month(), time.Now().Day(), time.Now().Year(), time.Now().Hour(), time.Now().Minute(), time.Now().Second())
+	fname := fmt.Sprintf("%s\\label-print-%d_%d_%d-%d-%d-%d-%d.png", FilePath, time.Now().Month(), time.Now().Day(), time.Now().Year(), time.Now().Hour(), time.Now().Minute(), time.Now().Second(), time.Now().Nanosecond())
 
 	f, err := os.Create(fname)
 	if err != nil {
@@ -200,8 +200,14 @@ func (a *App) handleRequest(conn net.Conn, width string, height string) {
 	}
 
 	messageString := strings.Join(lines, "")
-	err := a.SendToLabelary(messageString, width, height)
-	if err != nil {
-		fmt.Println(err)
+	for _, v := range strings.Split(messageString, "^XZ") {
+		if len(v) > 15 {
+			err := a.SendToLabelary(v+"^XZ", width, height)
+			if err != nil {
+				fmt.Println(err)
+			}
+		}
+		time.Sleep(250 * time.Millisecond)
 	}
+
 }
