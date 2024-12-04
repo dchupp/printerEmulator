@@ -10,6 +10,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"regexp"
 	"strconv"
 	"strings"
 	"sync"
@@ -148,6 +149,9 @@ func (a *App) SendToLabelary(zpl string, width string, height string) error {
 	if err != nil {
 		panic(err)
 	}
+	if strings.Contains(string(imageByte), "ERROR: Requested 1st label but ZPL generated no labels") {
+		return nil
+	}
 	base64String := base64.StdEncoding.EncodeToString(imageByte)
 
 	runtime.EventsEmit(a.ctx, "NewPrint", base64String)
@@ -202,12 +206,27 @@ func (a *App) handleRequest(conn net.Conn, width string, height string) {
 	messageString := strings.Join(lines, "")
 	for _, v := range strings.Split(messageString, "^XZ") {
 		if len(v) > 15 {
-			err := a.SendToLabelary(v+"^XZ", width, height)
-			if err != nil {
-				fmt.Println(err)
+			zpl := v + "^XZ"
+			re := regexp.MustCompile(`\^PQ(\d+)`)
+			qtySearch := re.FindStringSubmatch(zpl)
+			printCount := 1
+			qtyText := ""
+			if len(qtySearch) > 1 {
+				qtyText = qtySearch[1]
 			}
-		}
-		time.Sleep(250 * time.Millisecond)
-	}
 
+			if qtyText != "" {
+				printCount, _ = strconv.Atoi(qtyText)
+				zpl = re.ReplaceAllString(zpl, "")
+			}
+			for i := 0; i < printCount; i++ {
+				err := a.SendToLabelary(zpl, width, height)
+				if err != nil {
+					fmt.Println(err)
+				}
+				time.Sleep(250 * time.Millisecond)
+			}
+
+		}
+	}
 }
