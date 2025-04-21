@@ -155,6 +155,14 @@ func (a *App) SendToLabelary(zpl string, width string, height string) error {
 	base64String := base64.StdEncoding.EncodeToString(imageByte)
 
 	runtime.EventsEmit(a.ctx, "NewPrint", base64String)
+	// countOfLabel := res.Header.Get("x-total-count")
+	// if countOfLabel != "" && countOfLabel != "0" && countOfLabel != "1" {
+	// 	//TODO let's implement x-total-count based on the first message to get the additional labels
+	// 	// imageByte, err := io.ReadAll(res.Body)
+	// 	// base64String := base64.StdEncoding.EncodeToString(imageByte)
+	// 	// runtime.EventsEmit(a.ctx, "NewPrint", base64String)
+	// I want to build a loop of labels and build them to an array of base64 string
+	// }
 
 	if SaveToFile == false {
 		return nil
@@ -204,6 +212,7 @@ func (a *App) handleRequest(conn net.Conn, width string, height string) {
 	}
 
 	messageString := strings.Join(lines, "")
+	//TODO remove ^XZ splitting
 	for _, v := range strings.Split(messageString, "^XZ") {
 		if len(v) > 15 {
 			zpl := v + "^XZ"
