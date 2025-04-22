@@ -12,6 +12,9 @@
         <q-btn dense flat color="primary" class="text-white" @click="GoToLinkedin"><q-icon class="text-h4"
             name="perm_contact_calendar" />
           @linkedin/Dchupp</q-btn>
+        <div>
+          <q-icon name="electric_bolt" /> v2.2.2
+        </div>
       </q-toolbar>
     </q-header>
 
