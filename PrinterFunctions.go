@@ -10,7 +10,6 @@ import (
 	"net"
 	"net/http"
 	"os"
-	"regexp"
 	"strconv"
 	"strings"
 	"sync"
@@ -127,10 +126,77 @@ func (a *App) SendToLabelary(zpl string, width string, height string) error {
 	if zpl == "" {
 		return nil
 	}
-	req, err := http.NewRequestWithContext(context.TODO(), "POST", fmt.Sprintf("http://api.labelary.com/v1/printers/%ddpmm/labels/%sx%s/0/", DPI.Dpi, width, height), strings.NewReader(zpl))
+	res, err := a.CallLabelary(zpl, 0, PrintWidth, PrintHeight)
+	if err != nil {
+		fmt.Println("Error calling Labelary:", err)
+		return nil
+	}
+
+	defer res.Body.Close()
+
+	var imageBytes [][]byte
+	imageByte, err := io.ReadAll(res.Body)
+	if err != nil {
+		panic(err)
+	}
+	if strings.Contains(string(imageByte), "ERROR: Requested 1st label but ZPL generated no labels") {
+		return nil
+	}
+	imageBytes = append(imageBytes, imageByte)
+	countOfLabel := res.Header.Get("x-total-count")
+	if countOfLabel != "" && countOfLabel != "0" && countOfLabel != "1" {
+		labelCounts, err := strconv.Atoi(countOfLabel)
+		if err != nil {
+			fmt.Println("Error converting label count:", err)
+			return nil
+		}
+		for i := 1; i < labelCounts; i++ {
+			time.Sleep(250 * time.Millisecond)
+			res, err := a.CallLabelary(zpl, i, PrintWidth, PrintHeight)
+			if err != nil {
+				fmt.Println("Error calling Labelary:", err)
+				return nil
+			}
+			defer res.Body.Close()
+			imageByte, err := io.ReadAll(res.Body)
+			if err != nil {
+				panic(err)
+			}
+			if strings.Contains(string(imageByte), "ERROR: Requested 1st label but ZPL generated no labels") {
+				return nil
+			}
+			imageBytes = append(imageBytes, imageByte)
+		}
+	}
+	for _, v := range imageBytes {
+		base64String := base64.StdEncoding.EncodeToString(v)
+
+		runtime.EventsEmit(a.ctx, "NewPrint", base64String)
+		if SaveToFile {
+			fname := fmt.Sprintf("%s\\label-print-%d_%d_%d-%d-%d-%d-%d.png", FilePath, time.Now().Month(), time.Now().Day(), time.Now().Year(), time.Now().Hour(), time.Now().Minute(), time.Now().Second(), time.Now().Nanosecond())
+
+			f, err := os.Create(fname)
+			if err != nil {
+				return err
+			}
+			defer f.Close()
+
+			_, err = f.Write(imageByte)
+
+			if err != nil {
+				return err
+			}
+			fmt.Printf("%s created!", fname)
+		}
+	}
+
+	return nil
+}
+func (a *App) CallLabelary(zpl string, printNumber int, width int, height int) (*http.Response, error) {
+	req, err := http.NewRequestWithContext(context.TODO(), "POST", fmt.Sprintf("http://api.labelary.com/v1/printers/%ddpmm/labels/%dx%d/%d/", DPI.Dpi, width, height, printNumber), strings.NewReader(zpl))
 	if err != nil {
 		fmt.Printf("client: could not create request: %s\n", err)
-		return err
+		return nil, err
 	}
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	req.Header.Set("Accept", "image/png")
@@ -140,48 +206,9 @@ func (a *App) SendToLabelary(zpl string, width string, height string) error {
 	}
 	res, err := client.Do(req)
 	if err != nil {
-		return err
+		return nil, err
 	}
-
-	defer res.Body.Close()
-
-	imageByte, err := io.ReadAll(res.Body)
-	if err != nil {
-		panic(err)
-	}
-	if strings.Contains(string(imageByte), "ERROR: Requested 1st label but ZPL generated no labels") {
-		return nil
-	}
-	base64String := base64.StdEncoding.EncodeToString(imageByte)
-
-	runtime.EventsEmit(a.ctx, "NewPrint", base64String)
-	// countOfLabel := res.Header.Get("x-total-count")
-	// if countOfLabel != "" && countOfLabel != "0" && countOfLabel != "1" {
-	// 	//TODO let's implement x-total-count based on the first message to get the additional labels
-	// 	// imageByte, err := io.ReadAll(res.Body)
-	// 	// base64String := base64.StdEncoding.EncodeToString(imageByte)
-	// 	// runtime.EventsEmit(a.ctx, "NewPrint", base64String)
-	// I want to build a loop of labels and build them to an array of base64 string
-	// }
-
-	if SaveToFile == false {
-		return nil
-	}
-	fname := fmt.Sprintf("%s\\label-print-%d_%d_%d-%d-%d-%d-%d.png", FilePath, time.Now().Month(), time.Now().Day(), time.Now().Year(), time.Now().Hour(), time.Now().Minute(), time.Now().Second(), time.Now().Nanosecond())
-
-	f, err := os.Create(fname)
-	if err != nil {
-		return err
-	}
-	defer f.Close()
-
-	_, err = f.Write(imageByte)
-
-	if err != nil {
-		return err
-	}
-	fmt.Printf("%s created!", fname)
-	return nil
+	return res, nil
 }
 
 // Handles incoming requests.
@@ -212,30 +239,8 @@ func (a *App) handleRequest(conn net.Conn, width string, height string) {
 	}
 
 	messageString := strings.Join(lines, "")
-	//TODO remove ^XZ splitting
-	for _, v := range strings.Split(messageString, "^XZ") {
-		if len(v) > 15 {
-			zpl := v + "^XZ"
-			re := regexp.MustCompile(`\^PQ(\d+)`)
-			qtySearch := re.FindStringSubmatch(zpl)
-			printCount := 1
-			qtyText := ""
-			if len(qtySearch) > 1 {
-				qtyText = qtySearch[1]
-			}
-
-			if qtyText != "" {
-				printCount, _ = strconv.Atoi(qtyText)
-				zpl = re.ReplaceAllString(zpl, "")
-			}
-			for i := 0; i < printCount; i++ {
-				err := a.SendToLabelary(zpl, width, height)
-				if err != nil {
-					fmt.Println(err)
-				}
-				time.Sleep(250 * time.Millisecond)
-			}
-
-		}
+	err := a.SendToLabelary(messageString, width, height)
+	if err != nil {
+		fmt.Println(err)
 	}
 }
