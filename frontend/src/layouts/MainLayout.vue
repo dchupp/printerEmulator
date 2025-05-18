@@ -12,6 +12,10 @@
         <q-btn dense flat color="primary" class="text-white" @click="GoToLinkedin"><q-icon class="text-h4"
             name="perm_contact_calendar" />
           @linkedin/Dchupp</q-btn>
+        <q-btn flat dense color="primary" @click="$router.push('/printers')" class="text-white q-mr-s">
+          <q-icon name="print" class="text-h4" />
+          Printers
+        </q-btn>
         <div>
           <q-icon name="electric_bolt" /> v2.2.2
         </div>

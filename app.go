@@ -22,6 +22,11 @@ func NewApp(db *sql.DB) *App {
 	if err != nil {
 		panic(err)
 	}
+	// Initialize printers table at startup
+	err = InitPrintersTable(db)
+	if err != nil {
+		panic(err)
+	}
 	settings, err := LoadSettingsFromDB(db)
 	if err != nil {
 		// If no settings exist, create default
@@ -164,4 +169,20 @@ func (a *App) ClearPrintDirectory() {
 }
 func (a *App) GetPrintDirectory() string {
 	return a.Settings.PrintPath
+}
+
+func (a *App) AddPrinter(printer Printer) error {
+	return AddPrinter(a.db, &printer)
+}
+
+func (a *App) GetPrinters() ([]Printer, error) {
+	return GetPrinters(a.db)
+}
+
+func (a *App) UpdatePrinter(printer Printer) error {
+	return UpdatePrinter(a.db, &printer)
+}
+
+func (a *App) DeletePrinter(printerID int) error {
+	return DeletePrinter(a.db, printerID)
 }

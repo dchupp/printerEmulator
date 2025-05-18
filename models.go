@@ -89,3 +89,73 @@ func InitSettingsTable(db *sql.DB) error {
 	}
 	return err
 }
+
+// Printer CRUD and table initialization
+func InitPrintersTable(db *sql.DB) error {
+	_, err := db.Exec(`
+		CREATE TABLE IF NOT EXISTS printers (
+			printerID INTEGER PRIMARY KEY AUTOINCREMENT,
+			printerName TEXT NOT NULL,
+			ipAddress TEXT NOT NULL,
+			printerPort INTEGER NOT NULL,
+			printerType TEXT NOT NULL
+		)`)
+	if err != nil {
+		println("Error initializing printers table:", err.Error())
+	}
+	return err
+}
+
+func AddPrinter(db *sql.DB, p *Printer) error {
+	res, err := db.Exec(`
+		INSERT INTO printers (printerName, ipAddress, printerPort, printerType)
+		VALUES (?, ?, ?, ?)
+	`, p.PrinterName, p.IPAddress, p.PrinterPort, p.PrinterType)
+	if err != nil {
+		println("Error adding printer:", err.Error())
+		return err
+	}
+	id, err := res.LastInsertId()
+	if err == nil {
+		p.PrinterID = int(id)
+	}
+	return err
+}
+
+func GetPrinters(db *sql.DB) ([]Printer, error) {
+	rows, err := db.Query(`SELECT printerID, printerName, ipAddress, printerPort, printerType FROM printers`)
+	if err != nil {
+		println("Error getting printers:", err.Error())
+		return nil, err
+	}
+	defer rows.Close()
+	var printers []Printer
+	for rows.Next() {
+		var p Printer
+		err := rows.Scan(&p.PrinterID, &p.PrinterName, &p.IPAddress, &p.PrinterPort, &p.PrinterType)
+		if err != nil {
+			println("Error scanning printer row:", err.Error())
+			continue
+		}
+		printers = append(printers, p)
+	}
+	return printers, nil
+}
+
+func UpdatePrinter(db *sql.DB, p *Printer) error {
+	_, err := db.Exec(`
+		UPDATE printers SET printerName=?, ipAddress=?, printerPort=?, printerType=? WHERE printerID=?
+	`, p.PrinterName, p.IPAddress, p.PrinterPort, p.PrinterType, p.PrinterID)
+	if err != nil {
+		println("Error updating printer:", err.Error())
+	}
+	return err
+}
+
+func DeletePrinter(db *sql.DB, printerID int) error {
+	_, err := db.Exec(`DELETE FROM printers WHERE printerID=?`, printerID)
+	if err != nil {
+		println("Error deleting printer:", err.Error())
+	}
+	return err
+}

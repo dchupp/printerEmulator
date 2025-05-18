@@ -129,6 +129,26 @@ export namespace http {
 
 export namespace main {
 	
+	export class Printer {
+	    printerID: number;
+	    printerName: string;
+	    ipAddress: string;
+	    printerPort: number;
+	    printerType: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new Printer(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.printerID = source["printerID"];
+	        this.printerName = source["printerName"];
+	        this.ipAddress = source["ipAddress"];
+	        this.printerPort = source["printerPort"];
+	        this.printerType = source["printerType"];
+	    }
+	}
 	export class PrinterDPI {
 	    value: number;
 	    desc: string;
