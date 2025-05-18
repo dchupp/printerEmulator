@@ -6,6 +6,10 @@ export function CallLabelary(arg1, arg2, arg3, arg4) {
   return window['go']['main']['App']['CallLabelary'](arg1, arg2, arg3, arg4);
 }
 
+export function ClearPrintDirectory() {
+  return window['go']['main']['App']['ClearPrintDirectory']();
+}
+
 export function GetHeight() {
   return window['go']['main']['App']['GetHeight']();
 }

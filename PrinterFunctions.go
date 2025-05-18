@@ -93,7 +93,7 @@ func (a *App) serve() {
 	}
 }
 func (s *TCPServer) GetStatus() bool {
-	addressString := fmt.Sprintf("%s:%d", CONN_HOST, CONN_PORT)
+	addressString := net.JoinHostPort(CONN_HOST, fmt.Sprintf("%d", CONN_PORT))
 	conn, err := net.Dial("tcp", addressString)
 	if err != nil {
 		return false

@@ -5,6 +5,8 @@ import {main} from '../models';
 
 export function CallLabelary(arg1:string,arg2:number,arg3:number,arg4:number):Promise<http.Response>;
 
+export function ClearPrintDirectory():Promise<void>;
+
 export function GetHeight():Promise<number>;
 
 export function GetPrintDirectory():Promise<string>;

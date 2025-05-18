@@ -2,19 +2,42 @@ package main
 
 import (
 	"context"
+	"database/sql"
 
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
 // App struct
+// Add db and settings fields to App
 type App struct {
-	ctx context.Context
-	tcp *TCPServer
+	ctx      context.Context
+	tcp      *TCPServer
+	db       *sql.DB
+	Settings *Settings
 }
 
 // NewApp creates a new App application struct
-func NewApp() *App {
-	return &App{}
+func NewApp(db *sql.DB) *App {
+	err := InitSettingsTable(db)
+	if err != nil {
+		panic(err)
+	}
+	settings, err := LoadSettingsFromDB(db)
+	if err != nil {
+		// If no settings exist, create default
+		settings = &Settings{
+			SettingID:      1,
+			PrintWidth:     4,
+			PrintHeight:    6,
+			PrintRotation:  0,
+			PrinterPort:    9100,
+			PrintPath:      "",
+			PrinterDPI:     PrinterDPI{Dpi: 8, Description: "8 dpmm (203 dpi)"},
+			DefaultPrinter: 0,
+		}
+		_ = settings.SaveToDB(db)
+	}
+	return &App{db: db, Settings: settings}
 }
 
 // startup is called at application startup
@@ -45,7 +68,7 @@ func (a *App) shutdown(ctx context.Context) {
 
 func (a *App) StartPrinterServer() {
 	// active := a.GetPrinterRunStatus()
-	if Running == false {
+	if !Running {
 		a.tcp = a.NewTCPServer()
 		if a.tcp == nil {
 			Running = false
@@ -62,18 +85,23 @@ func (a *App) UpdateSave(fileSave bool) {
 
 func (a *App) UpdateWidth(width int) {
 	PrintWidth = width
+	a.Settings.PrintWidth = float64(width)
+	a.Settings.SaveToDB(a.db)
 }
 
 func (a *App) GetWidth() int {
-	return PrintWidth
+	return int(a.Settings.PrintWidth)
 }
 
 func (a *App) UpdateHeight(height int) {
 	PrintHeight = height
+	a.Settings.PrintHeight = float64(height)
+	a.Settings.SaveToDB(a.db)
 }
 
 func (a *App) GetHeight() int {
-	return PrintHeight
+
+	return int(a.Settings.PrintHeight)
 }
 
 func (a *App) StopPrintServer() {
@@ -86,29 +114,35 @@ func (a *App) GetPrinterRunStatus() bool {
 }
 func (a *App) UpdatePrinterDPI(dpi PrinterDPI) {
 	DPI = dpi
+	a.Settings.PrinterDPI = dpi
+	a.Settings.SaveToDB(a.db)
 }
 
 func (a *App) GetPrinterRotation() int {
-	return PrintRotation
+	return int(a.Settings.PrintRotation)
 }
 
 func (a *App) SetPrinterRotation(rotation int) {
 	PrintRotation = rotation
+	a.Settings.PrintRotation = float64(rotation)
+	a.Settings.SaveToDB(a.db)
 }
 
 func (a *App) GetPrinterDPI() PrinterDPI {
-	return DPI
+	return a.Settings.PrinterDPI
 }
 func (a *App) UpdatePrinterPort(port int) {
 	CONN_PORT = port
-	if Running == true {
+	a.Settings.PrinterPort = float64(port)
+	a.Settings.SaveToDB(a.db)
+	if Running {
 		a.StopPrintServer()
 		a.StartPrinterServer()
 	}
 }
 
 func (a *App) GetPrinterPort() int {
-	return CONN_PORT
+	return int(a.Settings.PrinterPort)
 }
 
 func (a *App) SetPrintDirectory() string {
@@ -118,10 +152,16 @@ func (a *App) SetPrintDirectory() string {
 
 	path, _ := runtime.OpenDirectoryDialog(a.ctx, dialog)
 	FilePath = path
+	a.Settings.PrintPath = path
+	a.Settings.SaveToDB(a.db)
 
 	return path
 }
-
+func (a *App) ClearPrintDirectory() {
+	FilePath = ""
+	a.Settings.PrintPath = FilePath
+	a.Settings.SaveToDB(a.db)
+}
 func (a *App) GetPrintDirectory() string {
-	return FilePath
+	return a.Settings.PrintPath
 }

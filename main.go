@@ -35,7 +35,7 @@ func main() {
 	}
 	defer db.SQL.Close()
 	// Create an instance of the app structure
-	app := NewApp()
+	app := NewApp(db.SQL)
 	// tcp := app.NewTCPServer()
 	DPI.Description = "8 dpmm (203 dpi)"
 	DPI.Dpi = 8

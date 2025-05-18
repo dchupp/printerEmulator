@@ -7,16 +7,16 @@ import (
 
 	_ "modernc.org/sqlite"
 )
+
 type DB struct {
 	SQL *sql.DB
 }
 
 var dbConn = &DB{}
 
-const maxOpenDbConn = 5
-const maxIdleDbConn = 5
+const maxOpenDbConn = 1
+const maxIdleDbConn = 1
 const maxDbLifeTime = 5 * time.Minute
-
 
 func ConnectSQLLite3(dsn string) (*DB, error) {
 	d, err := sql.Open("sqlite", dsn)

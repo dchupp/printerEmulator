@@ -55,7 +55,10 @@
               Directory</q-btn>
             <q-field class="q-mt-sm" flat dense>
               <template v-slot:control>
-                <div class="self-center full-width no-outline" tabindex="0">{{ SavePath }}</div>
+                <div class="row items-center full-width no-outline" tabindex="0">
+                  <div class="col-grow">{{ SavePath }}</div>
+                  <q-btn v-if="SavePath" size="xs" flat round icon="close" @click="ClearPrintPath" />
+                </div>
               </template>
             </q-field>
           </q-card-section>
@@ -82,7 +85,7 @@
 </template>
 
 <script setup>
-import { GetHeight, GetPrinterPort, GetWidth, GetPrinterRunStatus, SetPrintDirectory, UpdateHeight, UpdatePrinterPort, UpdatePrinterDPI, GetPrinterDPI, UpdateWidth, StartPrinterServer, StopPrintServer, UpdateSave, GetPrinterRotation, SetPrinterRotation } from 'app/wailsjs/go/main/App';
+import { GetHeight, GetPrinterPort, GetWidth, GetPrinterRunStatus, SetPrintDirectory, UpdateHeight, UpdatePrinterPort, UpdatePrinterDPI, GetPrinterDPI, UpdateWidth, StartPrinterServer, StopPrintServer, UpdateSave, GetPrinterRotation, SetPrinterRotation, GetPrintDirectory, ClearPrintDirectory } from 'app/wailsjs/go/main/App';
 import { onMounted, ref, watch } from 'vue';
 import { EventsOn } from "app/wailsjs/runtime/runtime";
 const block = ref(false)
@@ -204,6 +207,18 @@ async function GetPrinterSetPoints() {
       return
     }
   });
+  await GetPrinterRotation().then((result) => {
+    if (result != null) {
+      Rotation.value = result
+      return
+    }
+  });
+  await GetPrintDirectory().then((result) => {
+    if (result != null) {
+      SavePath.value = result
+      return
+    }
+  });
 }
 watch(PrintWidth, async () => {
   await UpdateWidth(parseInt(PrintWidth.value))
@@ -254,5 +269,10 @@ async function StopPrinter() {
   } finally {
   }
 
+}
+async function ClearPrintPath() {
+  SavePath.value = ""
+  ClearPrintDirectory()
+  console.log("Cleared")
 }
 </script>
