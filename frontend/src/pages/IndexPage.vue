@@ -86,8 +86,10 @@
 
 <script setup>
 import { GetHeight, GetPrinterPort, GetWidth, GetPrinterRunStatus, SetPrintDirectory, UpdateHeight, UpdatePrinterPort, UpdatePrinterDPI, GetPrinterDPI, UpdateWidth, StartPrinterServer, StopPrintServer, UpdateSave, GetPrinterRotation, SetPrinterRotation, GetPrintDirectory, ClearPrintDirectory } from 'app/wailsjs/go/main/App';
-import { onMounted, ref, watch } from 'vue';
+import { ref, onMounted, watch } from 'vue'
 import { EventsOn } from "app/wailsjs/runtime/runtime";
+import { GetPrinters } from 'app/wailsjs/go/main/App';
+
 const block = ref(false)
 const PrinterOn = ref(false)
 const PrinterSave = ref(false)
@@ -125,10 +127,30 @@ const options = [
   }
 ]
 
+const selectedPrinter = ref(null)
+const printerOptions = ref([])
+const selectedPrinterType = ref('')
+const printDestination = ref('printer')
+const printDestinationOptions = [
+  { label: 'Printer', value: 'printer' },
+  { label: 'Screen', value: 'screen' }
+]
+const ippDisplayOption = ref('show')
+const ippDisplayOptions = [
+  { label: 'Display Print', value: 'show' },
+  { label: 'Do Not Display Print', value: 'hide' }
+]
+
+async function loadPrinterOptions() {
+  const printers = await GetPrinters()
+  printerOptions.value = printers.map(p => ({ label: p.printerName, value: p.printerID, type: p.printerType }))
+}
+
 onMounted(async () => {
   await GetPrinterSetPoints()
   await CheckPrinterStatus()
   await GetRotation()
+  await loadPrinterOptions()
 })
 
 EventsOn("NewPrint", function (data) {
@@ -275,4 +297,8 @@ async function ClearPrintPath() {
   ClearPrintDirectory()
   console.log("Cleared")
 }
+watch(selectedPrinter, (val) => {
+  const found = printerOptions.value.find(p => p.value === val)
+  selectedPrinterType.value = found ? found.type : ''
+})
 </script>
