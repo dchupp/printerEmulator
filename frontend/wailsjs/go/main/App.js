@@ -6,6 +6,10 @@ export function AddPrinter(arg1) {
   return window['go']['main']['App']['AddPrinter'](arg1);
 }
 
+export function AddRelayGroup(arg1) {
+  return window['go']['main']['App']['AddRelayGroup'](arg1);
+}
+
 export function CallLabelary(arg1, arg2, arg3, arg4) {
   return window['go']['main']['App']['CallLabelary'](arg1, arg2, arg3, arg4);
 }
@@ -16,6 +20,10 @@ export function ClearPrintDirectory() {
 
 export function DeletePrinter(arg1) {
   return window['go']['main']['App']['DeletePrinter'](arg1);
+}
+
+export function DeleteRelayGroup(arg1) {
+  return window['go']['main']['App']['DeleteRelayGroup'](arg1);
 }
 
 export function GetHeight() {
@@ -44,6 +52,10 @@ export function GetPrinterRunStatus() {
 
 export function GetPrinters() {
   return window['go']['main']['App']['GetPrinters']();
+}
+
+export function GetRelayGroups() {
+  return window['go']['main']['App']['GetRelayGroups']();
 }
 
 export function GetWidth() {

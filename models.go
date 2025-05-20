@@ -2,6 +2,7 @@ package main
 
 import (
 	"database/sql"
+	"encoding/json"
 )
 
 type Settings struct {
@@ -21,6 +22,13 @@ type Printer struct {
 	IPAddress   string `json:"ipAddress"`
 	PrinterPort int    `json:"printerPort"`
 	PrinterType string `json:"printerType"`
+}
+
+// RelayGroup represents a group of printer IDs
+// e.g. [1,2,3]
+type RelayGroup struct {
+	GroupID    int   `json:"groupID"`
+	PrinterIDs []int `json:"printerIDs"`
 }
 
 // SettingsDB provides methods to interact with the settings table
@@ -156,6 +164,68 @@ func DeletePrinter(db *sql.DB, printerID int) error {
 	_, err := db.Exec(`DELETE FROM printers WHERE printerID=?`, printerID)
 	if err != nil {
 		println("Error deleting printer:", err.Error())
+	}
+	return err
+}
+
+// Initialize relay_groups table
+func InitRelayGroupsTable(db *sql.DB) error {
+	_, err := db.Exec(`
+		CREATE TABLE IF NOT EXISTS relay_groups (
+			groupID INTEGER PRIMARY KEY AUTOINCREMENT,
+			printerIDs TEXT NOT NULL -- JSON array of printer IDs
+		)`)
+	if err != nil {
+		println("Error initializing relay_groups table:", err.Error())
+	}
+	return err
+}
+
+// Add a relay group
+func AddRelayGroup(db *sql.DB, printerIDs []int) error {
+	idsJSON, err := json.Marshal(printerIDs)
+	if err != nil {
+		return err
+	}
+	_, err = db.Exec(`INSERT INTO relay_groups (printerIDs) VALUES (?)`, string(idsJSON))
+	if err != nil {
+		println("Error adding relay group:", err.Error())
+	}
+	return err
+}
+
+// Get all relay groups
+func GetRelayGroups(db *sql.DB) ([]RelayGroup, error) {
+	rows, err := db.Query(`SELECT groupID, printerIDs FROM relay_groups`)
+	if err != nil {
+		println("Error getting relay groups:", err.Error())
+		return nil, err
+	}
+	defer rows.Close()
+	var groups []RelayGroup
+	for rows.Next() {
+		var g RelayGroup
+		var idsJSON string
+		err := rows.Scan(&g.GroupID, &idsJSON)
+		if err != nil {
+			println("Error scanning relay group row:", err.Error())
+			continue
+		}
+		err = json.Unmarshal([]byte(idsJSON), &g.PrinterIDs)
+		if err != nil {
+			println("Error unmarshaling printerIDs:", err.Error())
+			continue
+		}
+		groups = append(groups, g)
+	}
+	return groups, nil
+}
+
+// Delete a relay group by groupID
+func DeleteRelayGroup(db *sql.DB, groupID int) error {
+	_, err := db.Exec(`DELETE FROM relay_groups WHERE groupID=?`, groupID)
+	if err != nil {
+		println("Error deleting relay group:", err.Error())
 	}
 	return err
 }

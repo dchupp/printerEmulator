@@ -2,9 +2,11 @@ package main
 
 import (
 	"bufio"
+	"bytes"
 	"context"
 	"encoding/base64"
 	"fmt"
+	"image/png"
 	"io"
 	"log"
 	"net"
@@ -15,6 +17,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/jung-kurt/gofpdf"
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
@@ -209,6 +212,58 @@ func (a *App) CallLabelary(zpl string, printNumber int, width int, height int) (
 		return nil, err
 	}
 	return res, nil
+}
+
+// ConvertPNGToPDF takes a PNG byte array and returns a PDF byte array
+func ConvertPNGToPDF(pngBytes []byte) ([]byte, error) {
+	img, err := png.Decode(bytes.NewReader(pngBytes))
+	if err != nil {
+		return nil, err
+	}
+	pdf := gofpdf.New("P", "mm", "A4", "")
+	pdf.AddPage()
+	// Save the PNG to a temporary file (gofpdf requires a file path for images)
+	tmpFile, err := os.CreateTemp("", "image-*.png")
+	if err != nil {
+		return nil, err
+	}
+	defer os.Remove(tmpFile.Name())
+	if err := png.Encode(tmpFile, img); err != nil {
+		tmpFile.Close()
+		return nil, err
+	}
+	tmpFile.Close()
+	pdf.ImageOptions(tmpFile.Name(), 10, 10, 0, 0, false, gofpdf.ImageOptions{ImageType: "PNG", ReadDpi: true}, 0, "")
+	var buf bytes.Buffer
+	err = pdf.Output(&buf)
+	if err != nil {
+		return nil, err
+	}
+	return buf.Bytes(), nil
+}
+
+// SendPDFToIPPPrinter sends a PDF byte array to an IPP printer at the given IP address and port
+func SendPDFToIPPPrinter(pdfBytes []byte, ipAddress string, port int) error {
+	if port == 0 {
+		port = 631 // Default IPP port
+	}
+	url := fmt.Sprintf("ipp://%s:%d/ipp/print", ipAddress, port)
+	request, err := http.NewRequest("POST", url, bytes.NewReader(pdfBytes))
+	if err != nil {
+		return fmt.Errorf("failed to create IPP request: %w", err)
+	}
+	request.Header.Set("Content-Type", "application/pdf")
+	client := &http.Client{Timeout: 30 * time.Second}
+	resp, err := client.Do(request)
+	if err != nil {
+		return fmt.Errorf("failed to send PDF to IPP printer: %w", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		body, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("IPP printer returned status %d: %s", resp.StatusCode, string(body))
+	}
+	return nil
 }
 
 // Handles incoming requests.

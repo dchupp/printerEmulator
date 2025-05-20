@@ -5,11 +5,15 @@ import {http} from '../models';
 
 export function AddPrinter(arg1:main.Printer):Promise<void>;
 
+export function AddRelayGroup(arg1:Array<number>):Promise<void>;
+
 export function CallLabelary(arg1:string,arg2:number,arg3:number,arg4:number):Promise<http.Response>;
 
 export function ClearPrintDirectory():Promise<void>;
 
 export function DeletePrinter(arg1:number):Promise<void>;
+
+export function DeleteRelayGroup(arg1:number):Promise<void>;
 
 export function GetHeight():Promise<number>;
 
@@ -24,6 +28,8 @@ export function GetPrinterRotation():Promise<number>;
 export function GetPrinterRunStatus():Promise<boolean>;
 
 export function GetPrinters():Promise<Array<main.Printer>>;
+
+export function GetRelayGroups():Promise<Array<main.RelayGroup>>;
 
 export function GetWidth():Promise<number>;
 

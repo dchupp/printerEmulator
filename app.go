@@ -27,6 +27,11 @@ func NewApp(db *sql.DB) *App {
 	if err != nil {
 		panic(err)
 	}
+	// Initialize relay_groups table at startup
+	err = InitRelayGroupsTable(db)
+	if err != nil {
+		panic(err)
+	}
 	settings, err := LoadSettingsFromDB(db)
 	if err != nil {
 		// If no settings exist, create default
@@ -185,4 +190,17 @@ func (a *App) UpdatePrinter(printer Printer) error {
 
 func (a *App) DeletePrinter(printerID int) error {
 	return DeletePrinter(a.db, printerID)
+}
+
+// Relay group methods for Wails frontend
+func (a *App) AddRelayGroup(printerIDs []int) error {
+	return AddRelayGroup(a.db, printerIDs)
+}
+
+func (a *App) GetRelayGroups() ([]RelayGroup, error) {
+	return GetRelayGroups(a.db)
+}
+
+func (a *App) DeleteRelayGroup(groupID int) error {
+	return DeleteRelayGroup(a.db, groupID)
 }

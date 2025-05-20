@@ -163,6 +163,20 @@ export namespace main {
 	        this.desc = source["desc"];
 	    }
 	}
+	export class RelayGroup {
+	    groupID: number;
+	    printerIDs: number[];
+	
+	    static createFrom(source: any = {}) {
+	        return new RelayGroup(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.groupID = source["groupID"];
+	        this.printerIDs = source["printerIDs"];
+	    }
+	}
 	export class TCPServer {
 	
 	
