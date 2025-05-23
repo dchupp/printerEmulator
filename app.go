@@ -94,7 +94,6 @@ func (a *App) UpdateSave(fileSave bool) {
 }
 
 func (a *App) UpdateWidth(width int) {
-	PrintWidth = width
 	a.Settings.PrintWidth = float64(width)
 	a.Settings.SaveToDB(a.db)
 }
@@ -104,7 +103,6 @@ func (a *App) GetWidth() int {
 }
 
 func (a *App) UpdateHeight(height int) {
-	PrintHeight = height
 	a.Settings.PrintHeight = float64(height)
 	a.Settings.SaveToDB(a.db)
 }
@@ -123,7 +121,6 @@ func (a *App) GetPrinterRunStatus() bool {
 	return Running
 }
 func (a *App) UpdatePrinterDPI(dpi PrinterDPI) {
-	DPI = dpi
 	a.Settings.PrinterDPI = dpi
 	a.Settings.SaveToDB(a.db)
 }
@@ -133,7 +130,6 @@ func (a *App) GetPrinterRotation() int {
 }
 
 func (a *App) SetPrinterRotation(rotation int) {
-	PrintRotation = rotation
 	a.Settings.PrintRotation = float64(rotation)
 	a.Settings.SaveToDB(a.db)
 }
@@ -142,7 +138,6 @@ func (a *App) GetPrinterDPI() PrinterDPI {
 	return a.Settings.PrinterDPI
 }
 func (a *App) UpdatePrinterPort(port int) {
-	CONN_PORT = port
 	a.Settings.PrinterPort = float64(port)
 	a.Settings.SaveToDB(a.db)
 	if Running {
@@ -161,15 +156,13 @@ func (a *App) SetPrintDirectory() string {
 	dialog.Title = "Save Print Location"
 
 	path, _ := runtime.OpenDirectoryDialog(a.ctx, dialog)
-	FilePath = path
 	a.Settings.PrintPath = path
 	a.Settings.SaveToDB(a.db)
 
 	return path
 }
 func (a *App) ClearPrintDirectory() {
-	FilePath = ""
-	a.Settings.PrintPath = FilePath
+	a.Settings.PrintPath = ""
 	a.Settings.SaveToDB(a.db)
 }
 func (a *App) GetPrintDirectory() string {
@@ -203,4 +196,20 @@ func (a *App) GetRelayGroups() ([]RelayGroup, error) {
 
 func (a *App) DeleteRelayGroup(groupID int) error {
 	return DeleteRelayGroup(a.db, groupID)
+}
+
+func (a *App) SetPrinterEmulatorMode() {
+	PrintMode = 0
+}
+func (a *App) SetPrinterRelayMode() {
+	PrintMode = 2
+}
+func (a *App) SetPrinterZPLToPrinterMode() {
+	PrintMode = 1
+}
+func (a *App) SelectPrinter(printer Printer) {
+	SelectedPrinter = printer
+}
+func (a *App) SelectRelayGroup(relayGroup RelayGroup) {
+	LabelRelayGroup = relayGroup
 }

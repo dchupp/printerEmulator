@@ -22,7 +22,14 @@ var assets embed.FS
 var icon []byte
 
 func main() {
+	printers, err := QueryInstalledPrinters()
+	if err != nil {
+		fmt.Errorf("Error querying installed printers: %v", err)
+	}
+	for _, v := range printers {
+		fmt.Println(v)
 
+	}
 	configPath, err := getMyAppConfigPath()
 	if err != nil {
 		log.Fatalf("Error getting application config path: %v", err)
@@ -37,8 +44,6 @@ func main() {
 	// Create an instance of the app structure
 	app := NewApp(db.SQL)
 	// tcp := app.NewTCPServer()
-	DPI.Description = "8 dpmm (203 dpi)"
-	DPI.Dpi = 8
 	// app.tcp = tcp
 	// defer app.tcp.Stop()
 

@@ -85,7 +85,7 @@
 </template>
 
 <script setup>
-import { GetHeight, GetPrinterPort, GetWidth, GetPrinterRunStatus, SetPrintDirectory, UpdateHeight, UpdatePrinterPort, UpdatePrinterDPI, GetPrinterDPI, UpdateWidth, StartPrinterServer, StopPrintServer, UpdateSave, GetPrinterRotation, SetPrinterRotation, GetPrintDirectory, ClearPrintDirectory } from 'app/wailsjs/go/main/App';
+import { GetHeight, GetPrinterPort, GetWidth, GetPrinterRunStatus, SetPrintDirectory, UpdateHeight, UpdatePrinterPort, UpdatePrinterDPI, GetPrinterDPI, UpdateWidth, StartPrinterServer, StopPrintServer, UpdateSave, GetPrinterRotation, SetPrinterRotation, GetPrintDirectory, ClearPrintDirectory, SetPrinterEmulatorMode } from 'app/wailsjs/go/main/App';
 import { ref, onMounted, watch } from 'vue'
 import { EventsOn } from "app/wailsjs/runtime/runtime";
 import { GetPrinters } from 'app/wailsjs/go/main/App';
@@ -147,6 +147,7 @@ async function loadPrinterOptions() {
 }
 
 onMounted(async () => {
+  await SetPrinterEmulatorMode()
   await GetPrinterSetPoints()
   await CheckPrinterStatus()
   await GetRotation()

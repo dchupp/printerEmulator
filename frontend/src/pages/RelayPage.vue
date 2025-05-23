@@ -47,8 +47,8 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
-import { GetPrinters, StartPrinterServer, StopPrintServer, GetPrinterRunStatus, AddRelayGroup, GetRelayGroups, DeleteRelayGroup } from 'app/wailsjs/go/main/App'
+import { ref, onMounted, watch } from 'vue'
+import { GetPrinters, StartPrinterServer, StopPrintServer, GetPrinterRunStatus, AddRelayGroup, GetRelayGroups, DeleteRelayGroup, SetPrinterRelayMode, SelectRelayGroup } from 'app/wailsjs/go/main/App'
 
 const printerOptions = ref([])
 const selectedPrinters = ref([])
@@ -114,7 +114,15 @@ async function checkServiceStatus() {
   serviceRunning.value = await GetPrinterRunStatus()
 }
 
+
+watch(selectedGroup, async (newVal) => {
+  if (newVal !== null) {
+    console.log('Selected Relay Group:', relayGroups.value[newVal])
+    await SelectRelayGroup(relayGroups.value[newVal])
+  }
+})
 onMounted(async () => {
+  await SetPrinterRelayMode()
   await loadPrinters()
   await loadRelayGroups()
   await checkServiceStatus()

@@ -66,6 +66,22 @@ export function NewTCPServer() {
   return window['go']['main']['App']['NewTCPServer']();
 }
 
+export function ProcessAndSendToPrinter(arg1, arg2, arg3, arg4) {
+  return window['go']['main']['App']['ProcessAndSendToPrinter'](arg1, arg2, arg3, arg4);
+}
+
+export function ProcessRelayGroup(arg1) {
+  return window['go']['main']['App']['ProcessRelayGroup'](arg1);
+}
+
+export function SelectPrinter(arg1) {
+  return window['go']['main']['App']['SelectPrinter'](arg1);
+}
+
+export function SelectRelayGroup(arg1) {
+  return window['go']['main']['App']['SelectRelayGroup'](arg1);
+}
+
 export function SendToLabelary(arg1, arg2, arg3) {
   return window['go']['main']['App']['SendToLabelary'](arg1, arg2, arg3);
 }
@@ -74,8 +90,20 @@ export function SetPrintDirectory() {
   return window['go']['main']['App']['SetPrintDirectory']();
 }
 
+export function SetPrinterEmulatorMode() {
+  return window['go']['main']['App']['SetPrinterEmulatorMode']();
+}
+
+export function SetPrinterRelayMode() {
+  return window['go']['main']['App']['SetPrinterRelayMode']();
+}
+
 export function SetPrinterRotation(arg1) {
   return window['go']['main']['App']['SetPrinterRotation'](arg1);
+}
+
+export function SetPrinterZPLToPrinterMode() {
+  return window['go']['main']['App']['SetPrinterZPLToPrinterMode']();
 }
 
 export function StartPrinterServer() {

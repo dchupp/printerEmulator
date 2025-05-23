@@ -35,11 +35,25 @@ export function GetWidth():Promise<number>;
 
 export function NewTCPServer():Promise<main.TCPServer>;
 
+export function ProcessAndSendToPrinter(arg1:string,arg2:string,arg3:number,arg4:string):Promise<void>;
+
+export function ProcessRelayGroup(arg1:string):Promise<void>;
+
+export function SelectPrinter(arg1:main.Printer):Promise<void>;
+
+export function SelectRelayGroup(arg1:main.RelayGroup):Promise<void>;
+
 export function SendToLabelary(arg1:string,arg2:string,arg3:string):Promise<void>;
 
 export function SetPrintDirectory():Promise<string>;
 
+export function SetPrinterEmulatorMode():Promise<void>;
+
+export function SetPrinterRelayMode():Promise<void>;
+
 export function SetPrinterRotation(arg1:number):Promise<void>;
+
+export function SetPrinterZPLToPrinterMode():Promise<void>;
 
 export function StartPrinterServer():Promise<void>;
 

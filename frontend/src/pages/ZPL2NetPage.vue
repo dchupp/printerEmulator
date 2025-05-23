@@ -21,7 +21,7 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
-import { GetPrinters, StartPrinterServer, StopPrintServer, GetPrinterRunStatus } from 'app/wailsjs/go/main/App'
+import { GetPrinters, StartPrinterServer, StopPrintServer, GetPrinterRunStatus, SetPrinterZPLToPrinterMode, SelectPrinter } from 'app/wailsjs/go/main/App'
 
 const ippPrinterOptions = ref([])
 const selectedPrinter = ref(null)
@@ -51,7 +51,13 @@ async function checkServiceStatus() {
 }
 
 onMounted(async () => {
+  await SetPrinterZPLToPrinterMode()
   await loadIPPPrinters()
   await checkServiceStatus()
+})
+watch(selectedPrinter, async (newVal) => {
+  if (newVal) {
+    await SelectPrinter(newVal)
+  }
 })
 </script>

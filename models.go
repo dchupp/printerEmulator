@@ -229,3 +229,17 @@ func DeleteRelayGroup(db *sql.DB, groupID int) error {
 	}
 	return err
 }
+
+// GetPrinterByID looks up a printer by its printerID
+func GetPrinterByID(db *sql.DB, printerID int) (*Printer, error) {
+	row := db.QueryRow(`SELECT printerID, printerName, ipAddress, printerPort, printerType FROM printers WHERE printerID = ?`, printerID)
+	var p Printer
+	err := row.Scan(&p.PrinterID, &p.PrinterName, &p.IPAddress, &p.PrinterPort, &p.PrinterType)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil // Not found
+		}
+		return nil, err
+	}
+	return &p, nil
+}
