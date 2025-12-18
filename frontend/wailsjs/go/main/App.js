@@ -26,6 +26,14 @@ export function DeleteRelayGroup(arg1) {
   return window['go']['main']['App']['DeleteRelayGroup'](arg1);
 }
 
+export function GetAutoStart() {
+  return window['go']['main']['App']['GetAutoStart']();
+}
+
+export function GetAutoStartServer() {
+  return window['go']['main']['App']['GetAutoStartServer']();
+}
+
 export function GetHeight() {
   return window['go']['main']['App']['GetHeight']();
 }
@@ -58,6 +66,10 @@ export function GetRelayGroups() {
   return window['go']['main']['App']['GetRelayGroups']();
 }
 
+export function GetVersion() {
+  return window['go']['main']['App']['GetVersion']();
+}
+
 export function GetWidth() {
   return window['go']['main']['App']['GetWidth']();
 }
@@ -68,6 +80,10 @@ export function NewTCPServer() {
 
 export function ProcessAndSendToPrinter(arg1, arg2, arg3, arg4) {
   return window['go']['main']['App']['ProcessAndSendToPrinter'](arg1, arg2, arg3, arg4);
+}
+
+export function ProcessAndSendToPrinterWithIPP(arg1, arg2, arg3, arg4, arg5, arg6) {
+  return window['go']['main']['App']['ProcessAndSendToPrinterWithIPP'](arg1, arg2, arg3, arg4, arg5, arg6);
 }
 
 export function ProcessRelayGroup(arg1) {
@@ -84,6 +100,14 @@ export function SelectRelayGroup(arg1) {
 
 export function SendToLabelary(arg1, arg2, arg3) {
   return window['go']['main']['App']['SendToLabelary'](arg1, arg2, arg3);
+}
+
+export function SetAutoStart(arg1) {
+  return window['go']['main']['App']['SetAutoStart'](arg1);
+}
+
+export function SetAutoStartServer(arg1) {
+  return window['go']['main']['App']['SetAutoStartServer'](arg1);
 }
 
 export function SetPrintDirectory() {

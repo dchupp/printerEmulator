@@ -10,12 +10,11 @@
         <q-btn flat dense color="primary" @click="GoToGitHub" class=" text-white q-mr-s"><q-icon class="text-h4"
             name="code" />
           @github/Dchupp</q-btn>
-        <q-btn dense flat color="primary" class="text-white" @click="GoToLinkedin"><q-icon class="text-h4"
-            name="perm_contact_calendar" />
-          @linkedin/Dchupp</q-btn>
-
+        <q-btn dense flat color="primary" class="text-white" @click="GoToDataMagik"><q-icon class="text-h4"
+            name="auto_fix_high" />
+          DataMagik</q-btn>
         <div>
-          <q-icon name="electric_bolt" /> v2.2.2
+          <q-icon name="electric_bolt" /> v{{ appVersion }}
         </div>
       </q-toolbar>
     </q-header>
@@ -50,12 +49,20 @@
 
 <script setup>
 import { BrowserOpenURL } from 'app/wailsjs/runtime/runtime';
-import { ref } from 'vue'
-function GoToLinkedin() {
-  BrowserOpenURL('https://www.linkedin.com/in/david-chupp/')
+import { GetVersion } from 'app/wailsjs/go/main/App';
+import { ref, onMounted } from 'vue'
+
+const appVersion = ref('...')
+const drawer = ref(false)
+
+onMounted(async () => {
+  appVersion.value = await GetVersion()
+})
+
+function GoToDataMagik() {
+  BrowserOpenURL('https://data-magik.com')
 }
 function GoToGitHub() {
   BrowserOpenURL('https://github.com/dchupp/printerEmulator')
 }
-const drawer = ref(false)
 </script>

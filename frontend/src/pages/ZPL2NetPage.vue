@@ -20,7 +20,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, watch } from 'vue'
 import { GetPrinters, StartPrinterServer, StopPrintServer, GetPrinterRunStatus, SetPrinterZPLToPrinterMode, SelectPrinter } from 'app/wailsjs/go/main/App'
 
 const ippPrinterOptions = ref([])

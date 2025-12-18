@@ -3,9 +3,17 @@ package main
 import (
 	"context"
 	"database/sql"
+	"os"
 
 	"github.com/wailsapp/wails/v2/pkg/runtime"
+	"golang.org/x/sys/windows/registry"
 )
+
+// AppVersion is the single source of truth for the application version
+const AppVersion = "2.3.0"
+
+// Registry key name for auto-start
+const autoStartKeyName = "ZPLPrinterEmulator"
 
 // App struct
 // Add db and settings fields to App
@@ -58,10 +66,11 @@ func (a *App) startup(ctx context.Context) {
 }
 
 // domReady is called after front-end resources have been loaded
-func (a App) domReady(ctx context.Context) {
-	// Add your action here
-	// a.tcp = a.NewTCPServer()
-	// a.serve()
+func (a *App) domReady(ctx context.Context) {
+	// Auto-start printer server if setting is enabled
+	if a.Settings.AutoStartServer {
+		a.StartPrinterServer()
+	}
 }
 
 // beforeClose is called when the application is about to quit,
@@ -212,4 +221,61 @@ func (a *App) SelectPrinter(printer Printer) {
 }
 func (a *App) SelectRelayGroup(relayGroup RelayGroup) {
 	LabelRelayGroup = relayGroup
+}
+
+// GetVersion returns the application version for frontend display
+func (a *App) GetVersion() string {
+	return AppVersion
+}
+
+// SetAutoStart enables or disables auto-start at Windows login
+func (a *App) SetAutoStart(enabled bool) error {
+	key, _, err := registry.CreateKey(registry.CURRENT_USER,
+		`Software\Microsoft\Windows\CurrentVersion\Run`,
+		registry.SET_VALUE|registry.QUERY_VALUE)
+	if err != nil {
+		return err
+	}
+	defer key.Close()
+
+	if enabled {
+		exePath, err := os.Executable()
+		if err != nil {
+			return err
+		}
+		return key.SetStringValue(autoStartKeyName, exePath)
+	}
+
+	// Delete the registry value if disabling
+	err = key.DeleteValue(autoStartKeyName)
+	// Ignore error if value doesn't exist
+	if err == registry.ErrNotExist {
+		return nil
+	}
+	return err
+}
+
+// GetAutoStart returns whether auto-start is currently enabled
+func (a *App) GetAutoStart() bool {
+	key, err := registry.OpenKey(registry.CURRENT_USER,
+		`Software\Microsoft\Windows\CurrentVersion\Run`,
+		registry.QUERY_VALUE)
+	if err != nil {
+		return false
+	}
+	defer key.Close()
+
+	_, _, err = key.GetStringValue(autoStartKeyName)
+	return err == nil
+}
+
+// SetAutoStartServer enables or disables automatic server start when app launches
+func (a *App) SetAutoStartServer(enabled bool) {
+	a.Settings.AutoStartServer = enabled
+	a.Settings.SaveToDB(a.db)
+}
+
+// GetAutoStartServer returns whether auto-start server is enabled
+func (a *App) GetAutoStartServer() bool {
+	return a.Settings.AutoStartServer
 }

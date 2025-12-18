@@ -77,6 +77,76 @@ ShowInstDetails show # This will always show the installation details.
 
 Function .onInit
    !insertmacro wails.checkArchitecture
+
+   ; Use 64-bit registry view
+   SetRegView 64
+
+   ; Check for existing installation under current key name
+   ReadRegStr $0 HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${INFO_COMPANYNAME}${INFO_PRODUCTNAME}" "UninstallString"
+   StrCmp $0 "" check_old_key found_uninstaller
+
+check_old_key:
+   ; Check for old installation key (Printer EmulatorPrinter Emulator)
+   ReadRegStr $0 HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\Printer EmulatorPrinter Emulator" "UninstallString"
+   StrCmp $0 "" done_uninstall found_uninstaller
+
+found_uninstaller:
+   ; Remove surrounding quotes if present
+   StrCpy $1 $0 1
+   StrCmp $1 '"' 0 +2
+   StrCpy $0 $0 "" 1  ; Remove leading quote
+
+   StrCpy $1 $0 1 -1
+   StrCmp $1 '"' 0 +2
+   StrCpy $0 $0 -1    ; Remove trailing quote
+
+   ; Get the install directory from uninstall path
+   Push $0
+   Call GetParent
+   Pop $1
+
+   ; Run the uninstaller silently, wait for completion
+   ExecWait '"$0" /S _?=$1' $2
+
+   ; Small delay to ensure uninstaller completes
+   Sleep 1000
+
+   ; Clean up leftover uninstaller if it exists
+   Delete "$0"
+   RMDir "$1"
+
+done_uninstall:
+   ; Reset to default registry view
+   SetRegView lastused
+FunctionEnd
+
+; Helper function to get parent directory from a path
+Function GetParent
+   Exch $0
+   Push $1
+   Push $2
+
+   StrCpy $1 $0 1 -1 ; Get last character
+   StrCmp $1 "\" 0 +2
+      StrCpy $0 $0 -1 ; Remove trailing backslash
+
+   StrLen $1 $0
+   IntOp $1 $1 - 1
+
+loop:
+   IntCmp $1 0 done done
+   StrCpy $2 $0 1 $1
+   StrCmp $2 "\" found
+   IntOp $1 $1 - 1
+   Goto loop
+
+found:
+   StrCpy $0 $0 $1
+
+done:
+   Pop $2
+   Pop $1
+   Exch $0
 FunctionEnd
 
 Section

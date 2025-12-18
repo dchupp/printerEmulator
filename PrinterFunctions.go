@@ -2,9 +2,13 @@ package main
 
 import (
 	"bufio"
+	"bytes"
 	"context"
+	"crypto/tls"
 	"encoding/base64"
+	"encoding/binary"
 	"fmt"
+	"image/png"
 	"io"
 	"log"
 	"net"
@@ -16,7 +20,23 @@ import (
 	"sync"
 	"time"
 
+	"github.com/jung-kurt/gofpdf"
 	"github.com/wailsapp/wails/v2/pkg/runtime"
+)
+
+// IPP constants for direct communication
+const (
+	ippOperationPrintJob = 0x0002
+	ippTagOperation      = 0x01
+	ippTagJob            = 0x02
+	ippTagEnd            = 0x03
+	ippTagCharset        = 0x47
+	ippTagLanguage       = 0x48
+	ippTagUri            = 0x45
+	ippTagName           = 0x42
+	ippTagMimeType       = 0x49
+	ippTagInteger        = 0x21
+	ippContentTypeIPP    = "application/ipp"
 )
 
 var (
@@ -89,10 +109,10 @@ func (a *App) serve() {
 			}
 		} else {
 			a.tcp.wg.Add(1)
-			go func() {
-				go a.handleRequest(conn, strconv.Itoa(int(a.Settings.PrintWidth)), strconv.Itoa(int(a.Settings.PrintHeight)))
-				a.tcp.wg.Done()
-			}()
+			go func(c net.Conn) {
+				defer a.tcp.wg.Done()
+				a.handleRequest(c, strconv.Itoa(int(a.Settings.PrintWidth)), strconv.Itoa(int(a.Settings.PrintHeight)))
+			}(conn)
 		}
 	}
 }
@@ -185,7 +205,7 @@ func (a *App) SendToLabelary(zpl string, width string, height string) error {
 			}
 			defer f.Close()
 
-			_, err = f.Write(imageByte)
+			_, err = f.Write(v) // Fixed: was writing wrong variable (imageByte instead of v)
 
 			if err != nil {
 				return err
@@ -215,9 +235,242 @@ func (a *App) CallLabelary(zpl string, printNumber int, width int, height int) (
 	return res, nil
 }
 
-// SendPDFToIPPPrinter sends a PDF byte array to an IPP printer at the given IP address and port
+// writeIPPAttribute writes a string attribute to the buffer
+func writeIPPAttribute(buf *bytes.Buffer, tag int8, name string, value []byte) {
+	binary.Write(buf, binary.BigEndian, tag)
+	binary.Write(buf, binary.BigEndian, int16(len(name)))
+	buf.WriteString(name)
+	binary.Write(buf, binary.BigEndian, int16(len(value)))
+	buf.Write(value)
+}
 
-// PrintPDFBytesToLocalPrinter prints a PDF byte array to a specified local printer using Windows built-in tools (no external dependencies)
+// writeIPPIntAttribute writes an integer attribute to the buffer
+func writeIPPIntAttribute(buf *bytes.Buffer, tag int8, name string, value int32) {
+	binary.Write(buf, binary.BigEndian, tag)
+	binary.Write(buf, binary.BigEndian, int16(len(name)))
+	buf.WriteString(name)
+	binary.Write(buf, binary.BigEndian, int16(4)) // integer is always 4 bytes
+	binary.Write(buf, binary.BigEndian, value)
+}
+
+// sendDirectIPPPrintJob sends a raw IPP Print-Job request with PDF data
+func sendDirectIPPPrintJob(host string, port int, endpoint string, useTLS bool, pdfData []byte, documentName string) (int, error) {
+	proto := "http"
+	if useTLS {
+		proto = "https"
+	}
+	url := fmt.Sprintf("%s://%s:%d%s", proto, host, port, endpoint)
+	printerURI := fmt.Sprintf("ipp://%s:%d%s", host, port, endpoint)
+
+	// Build IPP Print-Job request
+	buf := new(bytes.Buffer)
+
+	// Version 2.0
+	binary.Write(buf, binary.BigEndian, int8(2)) // major
+	binary.Write(buf, binary.BigEndian, int8(0)) // minor
+	// Operation
+	binary.Write(buf, binary.BigEndian, int16(ippOperationPrintJob))
+	// Request ID
+	binary.Write(buf, binary.BigEndian, int32(1))
+
+	// Operation attributes
+	binary.Write(buf, binary.BigEndian, int8(ippTagOperation))
+
+	// attributes-charset
+	writeIPPAttribute(buf, ippTagCharset, "attributes-charset", []byte("utf-8"))
+	// attributes-natural-language
+	writeIPPAttribute(buf, ippTagLanguage, "attributes-natural-language", []byte("en-us"))
+	// printer-uri
+	writeIPPAttribute(buf, ippTagUri, "printer-uri", []byte(printerURI))
+	// requesting-user-name
+	writeIPPAttribute(buf, ippTagName, "requesting-user-name", []byte("ZPLPrinterEmulator"))
+	// job-name
+	writeIPPAttribute(buf, ippTagName, "job-name", []byte(documentName))
+	// document-format
+	writeIPPAttribute(buf, ippTagMimeType, "document-format", []byte("application/pdf"))
+
+	// Job attributes section
+	binary.Write(buf, binary.BigEndian, int8(ippTagJob))
+	// copies (integer)
+	writeIPPIntAttribute(buf, ippTagInteger, "copies", 1)
+
+	// End tag
+	binary.Write(buf, binary.BigEndian, int8(ippTagEnd))
+
+	// Combine IPP request with PDF data
+	fullRequest := append(buf.Bytes(), pdfData...)
+
+	// Send HTTP request
+	client := &http.Client{
+		Timeout: 60 * time.Second,
+		Transport: &http.Transport{
+			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+		},
+	}
+
+	req, err := http.NewRequest("POST", url, bytes.NewReader(fullRequest))
+	if err != nil {
+		return 0, err
+	}
+	req.Header.Set("Content-Type", ippContentTypeIPP)
+	req.Header.Set("Content-Length", fmt.Sprintf("%d", len(fullRequest)))
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return 0, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != 200 {
+		return 0, fmt.Errorf("HTTP %d", resp.StatusCode)
+	}
+
+	// Parse response
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return 0, err
+	}
+
+	if len(body) < 8 {
+		return 0, fmt.Errorf("response too short: %d bytes", len(body))
+	}
+
+	// Check status code
+	statusCode := int16(body[2])<<8 | int16(body[3])
+	if statusCode != 0 {
+		return 0, fmt.Errorf("IPP error: status code 0x%04x", statusCode)
+	}
+
+	// Job submitted successfully
+	fmt.Printf("IPP print job submitted successfully to %s\n", host)
+	return 0, nil
+}
+
+// convertPNGToPDF converts PNG image bytes to PDF bytes
+func convertPNGToPDF(pngBytes []byte, widthInches, heightInches float64) ([]byte, error) {
+	// Decode PNG
+	img, err := png.Decode(bytes.NewReader(pngBytes))
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode PNG: %w", err)
+	}
+
+	// Create PDF with custom page size matching label dimensions
+	pdf := gofpdf.NewCustom(&gofpdf.InitType{
+		UnitStr: "in",
+		Size:    gofpdf.SizeType{Wd: widthInches, Ht: heightInches},
+	})
+	pdf.SetMargins(0, 0, 0)
+	pdf.AddPage()
+
+	// Register and add image
+	imgName := "label"
+	pdf.RegisterImageOptionsReader(imgName, gofpdf.ImageOptions{ImageType: "PNG"}, bytes.NewReader(pngBytes))
+
+	// Calculate image dimensions to fit the page
+	bounds := img.Bounds()
+	imgWidth := float64(bounds.Dx())
+	imgHeight := float64(bounds.Dy())
+
+	// Scale to fit page while maintaining aspect ratio
+	scaleX := widthInches / (imgWidth / 72.0)  // Assume 72 DPI for calculation
+	scaleY := heightInches / (imgHeight / 72.0)
+	scale := scaleX
+	if scaleY < scale {
+		scale = scaleY
+	}
+
+	// Center the image on the page
+	finalWidth := (imgWidth / 72.0) * scale
+	finalHeight := (imgHeight / 72.0) * scale
+	x := (widthInches - finalWidth) / 2
+	y := (heightInches - finalHeight) / 2
+
+	pdf.ImageOptions(imgName, x, y, finalWidth, finalHeight, false, gofpdf.ImageOptions{}, 0, "")
+
+	// Write to buffer
+	var buf bytes.Buffer
+	err = pdf.Output(&buf)
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate PDF: %w", err)
+	}
+
+	return buf.Bytes(), nil
+}
+
+// sendPNGDirectlyToIPP tries to send PNG directly via IPP (fallback if printer supports it)
+func sendPNGDirectlyToIPP(host string, port int, endpoint string, useTLS bool, pngData []byte, documentName string) error {
+	proto := "http"
+	if useTLS {
+		proto = "https"
+	}
+	url := fmt.Sprintf("%s://%s:%d%s", proto, host, port, endpoint)
+	printerURI := fmt.Sprintf("ipp://%s:%d%s", host, port, endpoint)
+
+	// Build IPP Print-Job request for PNG
+	buf := new(bytes.Buffer)
+
+	// Version 2.0
+	binary.Write(buf, binary.BigEndian, int8(2))
+	binary.Write(buf, binary.BigEndian, int8(0))
+	binary.Write(buf, binary.BigEndian, int16(ippOperationPrintJob))
+	binary.Write(buf, binary.BigEndian, int32(1))
+
+	binary.Write(buf, binary.BigEndian, int8(ippTagOperation))
+	writeIPPAttribute(buf, ippTagCharset, "attributes-charset", []byte("utf-8"))
+	writeIPPAttribute(buf, ippTagLanguage, "attributes-natural-language", []byte("en-us"))
+	writeIPPAttribute(buf, ippTagUri, "printer-uri", []byte(printerURI))
+	writeIPPAttribute(buf, ippTagName, "requesting-user-name", []byte("ZPLPrinterEmulator"))
+	writeIPPAttribute(buf, ippTagName, "job-name", []byte(documentName))
+	writeIPPAttribute(buf, ippTagMimeType, "document-format", []byte("image/png"))
+
+	binary.Write(buf, binary.BigEndian, int8(ippTagJob))
+	writeIPPIntAttribute(buf, ippTagInteger, "copies", 1)
+	binary.Write(buf, binary.BigEndian, int8(ippTagEnd))
+
+	fullRequest := append(buf.Bytes(), pngData...)
+
+	client := &http.Client{
+		Timeout: 60 * time.Second,
+		Transport: &http.Transport{
+			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+		},
+	}
+
+	req, err := http.NewRequest("POST", url, bytes.NewReader(fullRequest))
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Content-Type", ippContentTypeIPP)
+	req.Header.Set("Content-Length", fmt.Sprintf("%d", len(fullRequest)))
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != 200 {
+		return fmt.Errorf("HTTP %d", resp.StatusCode)
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return err
+	}
+
+	if len(body) < 8 {
+		return fmt.Errorf("response too short: %d bytes", len(body))
+	}
+
+	statusCode := int16(body[2])<<8 | int16(body[3])
+	if statusCode != 0 {
+		return fmt.Errorf("IPP error: status code 0x%04x", statusCode)
+	}
+
+	return nil
+}
+
+// PrintPNGBytesToLocalPrinter prints a PNG byte array to a specified local printer using Windows built-in tools (no external dependencies)
 func PrintPNGBytesToLocalPrinter(pngBytes []byte, printerName string) error {
 	tmpFile, err := os.CreateTemp("", "temp-*.png")
 	if err != nil {
@@ -249,6 +502,11 @@ func PrintPNGBytesToLocalPrinter(pngBytes []byte, printerName string) error {
 
 // ProcessAndSendToPrinter processes a print job for a given printer type and destination
 func (a *App) ProcessAndSendToPrinter(printerType, ipAddress string, port int, zpl string) error {
+	return a.ProcessAndSendToPrinterWithIPP(printerType, ipAddress, port, zpl, "/ipp/print", false)
+}
+
+// ProcessAndSendToPrinterWithIPP processes a print job with full IPP support
+func (a *App) ProcessAndSendToPrinterWithIPP(printerType, ipAddress string, port int, zpl string, ippEndpoint string, useTLS bool) error {
 	if printerType == "Zebra" {
 		// Forward the string to port 9100 (raw socket)
 		if port == 0 {
@@ -270,23 +528,33 @@ func (a *App) ProcessAndSendToPrinter(printerType, ipAddress string, port int, z
 		if zpl == "" {
 			return nil
 		}
+
+		// Set defaults
+		if port == 0 {
+			port = 631
+		}
+		if ippEndpoint == "" {
+			ippEndpoint = "/ipp/print"
+		}
+
 		res, err := a.CallLabelary(zpl, 0, int(a.Settings.PrintWidth), int(a.Settings.PrintHeight))
 		if err != nil {
 			fmt.Println("Error calling Labelary:", err)
-			return nil
+			return err
 		}
-
 		defer res.Body.Close()
 
 		var imageBytes [][]byte
 		imageByte, err := io.ReadAll(res.Body)
 		if err != nil {
-			panic(err)
+			return fmt.Errorf("failed to read Labelary response: %w", err)
 		}
 		if strings.Contains(string(imageByte), "ERROR: Requested 1st label but ZPL generated no labels") {
 			return nil
 		}
 		imageBytes = append(imageBytes, imageByte)
+
+		// Handle multi-label ZPL
 		countOfLabel := res.Header.Get("x-total-count")
 		if countOfLabel != "" && countOfLabel != "0" && countOfLabel != "1" {
 			labelCounts, err := strconv.Atoi(countOfLabel)
@@ -299,24 +567,50 @@ func (a *App) ProcessAndSendToPrinter(printerType, ipAddress string, port int, z
 				res, err := a.CallLabelary(zpl, i, int(a.Settings.PrintWidth), int(a.Settings.PrintHeight))
 				if err != nil {
 					fmt.Println("Error calling Labelary:", err)
-					return nil
+					continue
 				}
 				defer res.Body.Close()
 				imageByte, err := io.ReadAll(res.Body)
 				if err != nil {
-					panic(err)
+					continue
 				}
 				if strings.Contains(string(imageByte), "ERROR: Requested 1st label but ZPL generated no labels") {
-					return nil
+					continue
 				}
 				imageBytes = append(imageBytes, imageByte)
 			}
 		}
-		// Convert PNG to PDF
-		for _, bytes := range imageBytes {
-			PrintPNGBytesToLocalPrinter(bytes, "Brother HL-L3290CDW series")
-		}
 
+		// Send each label to the IPP printer
+		for i, pngBytes := range imageBytes {
+			documentName := fmt.Sprintf("ZPL-Label-%d-%d", time.Now().Unix(), i)
+
+			// First try: Convert PNG to PDF and send via IPP
+			pdfBytes, err := convertPNGToPDF(pngBytes, a.Settings.PrintWidth, a.Settings.PrintHeight)
+			if err != nil {
+				fmt.Printf("Failed to convert PNG to PDF: %v, trying PNG fallback\n", err)
+				// Fallback: Try sending PNG directly
+				err = sendPNGDirectlyToIPP(ipAddress, port, ippEndpoint, useTLS, pngBytes, documentName)
+				if err != nil {
+					fmt.Printf("IPP PNG fallback also failed: %v\n", err)
+					return err
+				}
+				continue
+			}
+
+			// Send PDF via IPP
+			_, err = sendDirectIPPPrintJob(ipAddress, port, ippEndpoint, useTLS, pdfBytes, documentName)
+			if err != nil {
+				fmt.Printf("IPP PDF print failed: %v, trying PNG fallback\n", err)
+				// Fallback: Try sending PNG directly
+				err = sendPNGDirectlyToIPP(ipAddress, port, ippEndpoint, useTLS, pngBytes, documentName)
+				if err != nil {
+					fmt.Printf("IPP PNG fallback also failed: %v\n", err)
+					return err
+				}
+			}
+		}
+		return nil
 	}
 	return fmt.Errorf("unsupported printer type: %s", printerType)
 }
@@ -357,7 +651,7 @@ func (a *App) handleRequest(conn net.Conn, width string, height string) {
 		}
 	case 1:
 		//ZPL to network Printer
-		a.ProcessAndSendToPrinter(SelectedPrinter.PrinterType, SelectedPrinter.IPAddress, SelectedPrinter.PrinterPort, messageString)
+		a.ProcessAndSendToPrinterWithIPP(SelectedPrinter.PrinterType, SelectedPrinter.IPAddress, SelectedPrinter.PrinterPort, messageString, SelectedPrinter.IPPEndpoint, SelectedPrinter.UseTLS)
 		return
 	case 2:
 		//Printer Relay
@@ -375,8 +669,7 @@ func (a *App) ProcessRelayGroup(zpl string) {
 			fmt.Println("Error getting printer by ID:", err)
 			continue
 		}
-		a.ProcessAndSendToPrinter(printer.PrinterType, printer.IPAddress, printer.PrinterPort, zpl)
-
+		a.ProcessAndSendToPrinterWithIPP(printer.PrinterType, printer.IPAddress, printer.PrinterPort, zpl, printer.IPPEndpoint, printer.UseTLS)
 	}
 }
 

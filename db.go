@@ -14,8 +14,8 @@ type DB struct {
 
 var dbConn = &DB{}
 
-const maxOpenDbConn = 1
-const maxIdleDbConn = 1
+const maxOpenDbConn = 10
+const maxIdleDbConn = 5
 const maxDbLifeTime = 5 * time.Minute
 
 func ConnectSQLLite3(dsn string) (*DB, error) {

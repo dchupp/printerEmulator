@@ -5,12 +5,19 @@
         <div class="text-h5">Network Printers</div>
         <q-separator class="q-my-sm" />
         <q-form @submit.prevent="onAddPrinter">
-          <div class="row q-col-gutter-md">
+          <div class="row q-col-gutter-md items-center">
             <q-input v-model="form.printerName" label="Printer Name" class="col" dense outlined required />
             <q-input v-model="form.ipAddress" label="IP Address" class="col" dense outlined required />
-            <q-select v-model="form.printerType" :options="printerTypeOptions" label="Type" class="col" dense outlined
+            <q-input v-model.number="form.printerPort" label="Port" class="col-2" dense outlined type="number" />
+            <q-select v-model="form.printerType" :options="printerTypeOptions" label="Type" class="col-2" dense outlined
               required />
-            <q-btn type="submit" color="primary" label="Add Printer" class="q-ml-md" />
+          </div>
+          <div v-if="getTypeValue(form.printerType) === 'IPP'" class="row q-col-gutter-md q-mt-sm items-center">
+            <q-input v-model="form.ippEndpoint" label="IPP Endpoint" class="col" dense outlined placeholder="/ipp/print" />
+            <q-toggle v-model="form.useTLS" label="Use TLS (IPPS)" class="col-3" />
+          </div>
+          <div class="row q-mt-sm">
+            <q-btn type="submit" color="primary" label="Add Printer" />
           </div>
         </q-form>
       </q-card-section>
@@ -24,14 +31,19 @@
         </q-table>
       </q-card-section>
       <q-dialog v-model="editDialog">
-        <q-card>
+        <q-card style="min-width: 400px">
           <q-card-section>
             <div class="text-h6">Edit Printer</div>
             <q-form @submit.prevent="onUpdatePrinter">
-              <q-input v-model="editForm.printerName" label="Printer Name" dense outlined required />
-              <q-input v-model="editForm.ipAddress" label="IP Address" dense outlined required />
+              <q-input v-model="editForm.printerName" label="Printer Name" dense outlined required class="q-mb-sm" />
+              <q-input v-model="editForm.ipAddress" label="IP Address" dense outlined required class="q-mb-sm" />
+              <q-input v-model.number="editForm.printerPort" label="Port" dense outlined type="number" class="q-mb-sm" />
               <q-select v-model="editForm.printerType" :options="printerTypeOptions" label="Type" dense outlined
-                required />
+                required class="q-mb-sm" />
+              <div v-if="getTypeValue(editForm.printerType) === 'IPP'">
+                <q-input v-model="editForm.ippEndpoint" label="IPP Endpoint" dense outlined placeholder="/ipp/print" class="q-mb-sm" />
+                <q-toggle v-model="editForm.useTLS" label="Use TLS (IPPS)" />
+              </div>
               <div class="q-mt-md">
                 <q-btn type="submit" color="primary" label="Save" />
                 <q-btn flat label="Cancel" color="grey" @click="editDialog = false" />
@@ -63,9 +75,14 @@ const printerTypeOptions = [
   { label: 'IPP', value: 'IPP' },
   { label: 'Zebra', value: 'Zebra' }
 ]
-const form = ref({ printerName: '', ipAddress: '', printerType: '' })
+const form = ref({ printerName: '', ipAddress: '', printerPort: 9100, printerType: '', ippEndpoint: '/ipp/print', useTLS: false })
 const editDialog = ref(false)
-const editForm = ref({ printerID: null, printerName: '', ipAddress: '', printerType: '' })
+const editForm = ref({ printerID: null, printerName: '', ipAddress: '', printerPort: 9100, printerType: '', ippEndpoint: '/ipp/print', useTLS: false })
+
+// Helper to get the string value from printerType (handles both object and string)
+function getTypeValue(type) {
+  return typeof type === 'object' && type?.value ? type.value : type
+}
 
 async function loadPrinters() {
   printers.value = await GetPrinters()
@@ -73,30 +90,37 @@ async function loadPrinters() {
 onMounted(loadPrinters)
 
 async function onAddPrinter() {
-  // Ensure we pass a string value for printerType
+  const typeValue = getTypeValue(form.value.printerType)
   await AddPrinter({
     printerName: form.value.printerName,
     ipAddress: form.value.ipAddress,
-    printerType: typeof form.value.printerType === 'object' && form.value.printerType.value ? form.value.printerType.value : form.value.printerType
+    printerPort: form.value.printerPort || (typeValue === 'IPP' ? 631 : 9100),
+    printerType: typeValue,
+    ippEndpoint: form.value.ippEndpoint || '/ipp/print',
+    useTLS: form.value.useTLS || false
   })
-  form.value = { printerName: '', ipAddress: '', printerType: '' }
+  form.value = { printerName: '', ipAddress: '', printerPort: 9100, printerType: '', ippEndpoint: '/ipp/print', useTLS: false }
   await loadPrinters()
 }
 function editPrinter(printer) {
-  // Set editForm.printerType to the string value for the select
   editForm.value = {
     ...printer,
-    printerType: printer.printerType
+    printerType: printer.printerType,
+    ippEndpoint: printer.ippEndpoint || '/ipp/print',
+    useTLS: printer.useTLS || false
   }
   editDialog.value = true
 }
 async function onUpdatePrinter() {
-  // Ensure we pass a string value for printerType
+  const typeValue = getTypeValue(editForm.value.printerType)
   await UpdatePrinter({
     printerID: editForm.value.printerID,
     printerName: editForm.value.printerName,
     ipAddress: editForm.value.ipAddress,
-    printerType: typeof editForm.value.printerType === 'object' && editForm.value.printerType.value ? editForm.value.printerType.value : editForm.value.printerType
+    printerPort: editForm.value.printerPort || (typeValue === 'IPP' ? 631 : 9100),
+    printerType: typeValue,
+    ippEndpoint: editForm.value.ippEndpoint || '/ipp/print',
+    useTLS: editForm.value.useTLS || false
   })
   editDialog.value = false
   await loadPrinters()

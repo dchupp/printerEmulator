@@ -7,3 +7,5 @@ build/bin/Printer Emulator.exe
 build/bin/Printer_Emulator.exe
 build/bin/Printer_Emulator.exe
 build/bin/Printer_Emulator.exe
+.claude/
+*.exe

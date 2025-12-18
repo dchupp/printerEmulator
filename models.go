@@ -6,14 +6,15 @@ import (
 )
 
 type Settings struct {
-	SettingID      int        `json:"settingID"`
-	PrintWidth     float64    `json:"printWidth"`
-	PrintHeight    float64    `json:"printHeight"`
-	PrintRotation  float64    `json:"printRotation"`
-	PrinterPort    float64    `json:"printerPort"`
-	PrintPath      string     `json:"printerPath"`
-	PrinterDPI     PrinterDPI `json:"printerDPI"`
-	DefaultPrinter int        `json:"defaultPrinter"`
+	SettingID       int        `json:"settingID"`
+	PrintWidth      float64    `json:"printWidth"`
+	PrintHeight     float64    `json:"printHeight"`
+	PrintRotation   float64    `json:"printRotation"`
+	PrinterPort     float64    `json:"printerPort"`
+	PrintPath       string     `json:"printerPath"`
+	PrinterDPI      PrinterDPI `json:"printerDPI"`
+	DefaultPrinter  int        `json:"defaultPrinter"`
+	AutoStartServer bool       `json:"autoStartServer"`
 }
 
 type Printer struct {
@@ -22,6 +23,8 @@ type Printer struct {
 	IPAddress   string `json:"ipAddress"`
 	PrinterPort int    `json:"printerPort"`
 	PrinterType string `json:"printerType"`
+	IPPEndpoint string `json:"ippEndpoint"` // IPP endpoint path (e.g., /ipp/print)
+	UseTLS      bool   `json:"useTLS"`      // Use IPPS (TLS) instead of IPP
 }
 
 // RelayGroup represents a group of printer IDs
@@ -34,10 +37,14 @@ type RelayGroup struct {
 // SettingsDB provides methods to interact with the settings table
 // Only one row should ever exist in the settings table
 func (s *Settings) SaveToDB(db *sql.DB) error {
+	autoStartInt := 0
+	if s.AutoStartServer {
+		autoStartInt = 1
+	}
 	_, err := db.Exec(`
 		INSERT INTO settings (
-			settingID, printWidth, printHeight, printRotation, printerPort, printPath, printerDPI_value, printerDPI_desc, defaultPrinter
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+			settingID, printWidth, printHeight, printRotation, printerPort, printPath, printerDPI_value, printerDPI_desc, defaultPrinter, autoStartServer
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT(settingID) DO UPDATE SET
 			printWidth=excluded.printWidth,
 			printHeight=excluded.printHeight,
@@ -46,7 +53,8 @@ func (s *Settings) SaveToDB(db *sql.DB) error {
 			printPath=excluded.printPath,
 			printerDPI_value=excluded.printerDPI_value,
 			printerDPI_desc=excluded.printerDPI_desc,
-			defaultPrinter=excluded.defaultPrinter
+			defaultPrinter=excluded.defaultPrinter,
+			autoStartServer=excluded.autoStartServer
 	`,
 		s.SettingID,
 		s.PrintWidth,
@@ -57,6 +65,7 @@ func (s *Settings) SaveToDB(db *sql.DB) error {
 		s.PrinterDPI.Dpi,
 		s.PrinterDPI.Description,
 		s.DefaultPrinter,
+		autoStartInt,
 	)
 	if err != nil {
 		println("Error saving settings to DB:", err.Error())
@@ -65,16 +74,18 @@ func (s *Settings) SaveToDB(db *sql.DB) error {
 }
 
 func LoadSettingsFromDB(db *sql.DB) (*Settings, error) {
-	row := db.QueryRow(`SELECT settingID, printWidth, printHeight, printRotation, printerPort, printPath, printerDPI_value, printerDPI_desc, defaultPrinter FROM settings LIMIT 1`)
+	row := db.QueryRow(`SELECT settingID, printWidth, printHeight, printRotation, printerPort, printPath, printerDPI_value, printerDPI_desc, defaultPrinter, COALESCE(autoStartServer, 0) FROM settings LIMIT 1`)
 	var s Settings
 	var dpiValue int
 	var dpiDesc string
-	err := row.Scan(&s.SettingID, &s.PrintWidth, &s.PrintHeight, &s.PrintRotation, &s.PrinterPort, &s.PrintPath, &dpiValue, &dpiDesc, &s.DefaultPrinter)
+	var autoStartInt int
+	err := row.Scan(&s.SettingID, &s.PrintWidth, &s.PrintHeight, &s.PrintRotation, &s.PrinterPort, &s.PrintPath, &dpiValue, &dpiDesc, &s.DefaultPrinter, &autoStartInt)
 	if err != nil {
 		println("Error loading settings from DB:", err.Error())
 		return nil, err
 	}
 	s.PrinterDPI = PrinterDPI{Dpi: dpiValue, Description: dpiDesc}
+	s.AutoStartServer = autoStartInt != 0
 	return &s, nil
 }
 
@@ -89,13 +100,19 @@ func InitSettingsTable(db *sql.DB) error {
 			printPath TEXT,
 			printerDPI_value INTEGER,
 			printerDPI_desc TEXT,
-			defaultPrinter INTEGER
+			defaultPrinter INTEGER,
+			autoStartServer INTEGER DEFAULT 0
 		)
 	`)
 	if err != nil {
 		println("Error initializing settings table:", err.Error())
+		return err
 	}
-	return err
+
+	// Add new column if it doesn't exist (for migrations)
+	db.Exec(`ALTER TABLE settings ADD COLUMN autoStartServer INTEGER DEFAULT 0`)
+
+	return nil
 }
 
 // Printer CRUD and table initialization
@@ -106,19 +123,36 @@ func InitPrintersTable(db *sql.DB) error {
 			printerName TEXT NOT NULL,
 			ipAddress TEXT NOT NULL,
 			printerPort INTEGER NOT NULL,
-			printerType TEXT NOT NULL
+			printerType TEXT NOT NULL,
+			ippEndpoint TEXT DEFAULT '/ipp/print',
+			useTLS INTEGER DEFAULT 0
 		)`)
 	if err != nil {
 		println("Error initializing printers table:", err.Error())
+		return err
 	}
-	return err
+
+	// Add new columns if they don't exist (for migrations)
+	db.Exec(`ALTER TABLE printers ADD COLUMN ippEndpoint TEXT DEFAULT '/ipp/print'`)
+	db.Exec(`ALTER TABLE printers ADD COLUMN useTLS INTEGER DEFAULT 0`)
+
+	return nil
 }
 
 func AddPrinter(db *sql.DB, p *Printer) error {
+	// Set defaults for IPP fields
+	if p.IPPEndpoint == "" {
+		p.IPPEndpoint = "/ipp/print"
+	}
+	useTLSInt := 0
+	if p.UseTLS {
+		useTLSInt = 1
+	}
+
 	res, err := db.Exec(`
-		INSERT INTO printers (printerName, ipAddress, printerPort, printerType)
-		VALUES (?, ?, ?, ?)
-	`, p.PrinterName, p.IPAddress, p.PrinterPort, p.PrinterType)
+		INSERT INTO printers (printerName, ipAddress, printerPort, printerType, ippEndpoint, useTLS)
+		VALUES (?, ?, ?, ?, ?, ?)
+	`, p.PrinterName, p.IPAddress, p.PrinterPort, p.PrinterType, p.IPPEndpoint, useTLSInt)
 	if err != nil {
 		println("Error adding printer:", err.Error())
 		return err
@@ -131,7 +165,7 @@ func AddPrinter(db *sql.DB, p *Printer) error {
 }
 
 func GetPrinters(db *sql.DB) ([]Printer, error) {
-	rows, err := db.Query(`SELECT printerID, printerName, ipAddress, printerPort, printerType FROM printers`)
+	rows, err := db.Query(`SELECT printerID, printerName, ipAddress, printerPort, printerType, COALESCE(ippEndpoint, '/ipp/print'), COALESCE(useTLS, 0) FROM printers`)
 	if err != nil {
 		println("Error getting printers:", err.Error())
 		return nil, err
@@ -140,20 +174,29 @@ func GetPrinters(db *sql.DB) ([]Printer, error) {
 	var printers []Printer
 	for rows.Next() {
 		var p Printer
-		err := rows.Scan(&p.PrinterID, &p.PrinterName, &p.IPAddress, &p.PrinterPort, &p.PrinterType)
+		var useTLSInt int
+		err := rows.Scan(&p.PrinterID, &p.PrinterName, &p.IPAddress, &p.PrinterPort, &p.PrinterType, &p.IPPEndpoint, &useTLSInt)
 		if err != nil {
 			println("Error scanning printer row:", err.Error())
 			continue
 		}
+		p.UseTLS = useTLSInt != 0
 		printers = append(printers, p)
 	}
 	return printers, nil
 }
 
 func UpdatePrinter(db *sql.DB, p *Printer) error {
+	useTLSInt := 0
+	if p.UseTLS {
+		useTLSInt = 1
+	}
+	if p.IPPEndpoint == "" {
+		p.IPPEndpoint = "/ipp/print"
+	}
 	_, err := db.Exec(`
-		UPDATE printers SET printerName=?, ipAddress=?, printerPort=?, printerType=? WHERE printerID=?
-	`, p.PrinterName, p.IPAddress, p.PrinterPort, p.PrinterType, p.PrinterID)
+		UPDATE printers SET printerName=?, ipAddress=?, printerPort=?, printerType=?, ippEndpoint=?, useTLS=? WHERE printerID=?
+	`, p.PrinterName, p.IPAddress, p.PrinterPort, p.PrinterType, p.IPPEndpoint, useTLSInt, p.PrinterID)
 	if err != nil {
 		println("Error updating printer:", err.Error())
 	}
@@ -232,14 +275,16 @@ func DeleteRelayGroup(db *sql.DB, groupID int) error {
 
 // GetPrinterByID looks up a printer by its printerID
 func GetPrinterByID(db *sql.DB, printerID int) (*Printer, error) {
-	row := db.QueryRow(`SELECT printerID, printerName, ipAddress, printerPort, printerType FROM printers WHERE printerID = ?`, printerID)
+	row := db.QueryRow(`SELECT printerID, printerName, ipAddress, printerPort, printerType, COALESCE(ippEndpoint, '/ipp/print'), COALESCE(useTLS, 0) FROM printers WHERE printerID = ?`, printerID)
 	var p Printer
-	err := row.Scan(&p.PrinterID, &p.PrinterName, &p.IPAddress, &p.PrinterPort, &p.PrinterType)
+	var useTLSInt int
+	err := row.Scan(&p.PrinterID, &p.PrinterName, &p.IPAddress, &p.PrinterPort, &p.PrinterType, &p.IPPEndpoint, &useTLSInt)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, nil // Not found
 		}
 		return nil, err
 	}
+	p.UseTLS = useTLSInt != 0
 	return &p, nil
 }

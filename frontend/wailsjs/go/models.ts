@@ -135,6 +135,8 @@ export namespace main {
 	    ipAddress: string;
 	    printerPort: number;
 	    printerType: string;
+	    ippEndpoint: string;
+	    useTLS: boolean;
 	
 	    static createFrom(source: any = {}) {
 	        return new Printer(source);
@@ -147,6 +149,8 @@ export namespace main {
 	        this.ipAddress = source["ipAddress"];
 	        this.printerPort = source["printerPort"];
 	        this.printerType = source["printerType"];
+	        this.ippEndpoint = source["ippEndpoint"];
+	        this.useTLS = source["useTLS"];
 	    }
 	}
 	export class PrinterDPI {
@@ -356,6 +360,7 @@ export namespace tls {
 	    HandshakeComplete: boolean;
 	    DidResume: boolean;
 	    CipherSuite: number;
+	    CurveID: number;
 	    NegotiatedProtocol: string;
 	    NegotiatedProtocolIsMutual: boolean;
 	    ServerName: string;
@@ -376,6 +381,7 @@ export namespace tls {
 	        this.HandshakeComplete = source["HandshakeComplete"];
 	        this.DidResume = source["DidResume"];
 	        this.CipherSuite = source["CipherSuite"];
+	        this.CurveID = source["CurveID"];
 	        this.NegotiatedProtocol = source["NegotiatedProtocol"];
 	        this.NegotiatedProtocolIsMutual = source["NegotiatedProtocolIsMutual"];
 	        this.ServerName = source["ServerName"];

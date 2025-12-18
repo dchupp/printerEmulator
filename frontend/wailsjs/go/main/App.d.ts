@@ -15,6 +15,10 @@ export function DeletePrinter(arg1:number):Promise<void>;
 
 export function DeleteRelayGroup(arg1:number):Promise<void>;
 
+export function GetAutoStart():Promise<boolean>;
+
+export function GetAutoStartServer():Promise<boolean>;
+
 export function GetHeight():Promise<number>;
 
 export function GetPrintDirectory():Promise<string>;
@@ -31,11 +35,15 @@ export function GetPrinters():Promise<Array<main.Printer>>;
 
 export function GetRelayGroups():Promise<Array<main.RelayGroup>>;
 
+export function GetVersion():Promise<string>;
+
 export function GetWidth():Promise<number>;
 
 export function NewTCPServer():Promise<main.TCPServer>;
 
 export function ProcessAndSendToPrinter(arg1:string,arg2:string,arg3:number,arg4:string):Promise<void>;
+
+export function ProcessAndSendToPrinterWithIPP(arg1:string,arg2:string,arg3:number,arg4:string,arg5:string,arg6:boolean):Promise<void>;
 
 export function ProcessRelayGroup(arg1:string):Promise<void>;
 
@@ -44,6 +52,10 @@ export function SelectPrinter(arg1:main.Printer):Promise<void>;
 export function SelectRelayGroup(arg1:main.RelayGroup):Promise<void>;
 
 export function SendToLabelary(arg1:string,arg2:string,arg3:string):Promise<void>;
+
+export function SetAutoStart(arg1:boolean):Promise<void>;
+
+export function SetAutoStartServer(arg1:boolean):Promise<void>;
 
 export function SetPrintDirectory():Promise<string>;
 
