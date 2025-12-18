@@ -53,9 +53,15 @@
             <q-toggle size="lg" v-if="PrinterOn == true" v-model="PrinterSave" label="Save Prints" color="purple-5" />
             <q-btn @click="GetSaveFileLocation()" color="" flat class="bg-purple-1 full-width" dense>Select Save
               Directory</q-btn>
+            <q-separator class="q-my-sm" />
+            <q-toggle size="lg" v-model="AutoStartEnabled" label="Start at Windows Login" color="purple-5" />
+            <q-toggle size="lg" v-model="AutoStartServerEnabled" label="Auto-start Printer Server" color="purple-5" />
             <q-field class="q-mt-sm" flat dense>
               <template v-slot:control>
-                <div class="self-center full-width no-outline" tabindex="0">{{ SavePath }}</div>
+                <div class="row items-center full-width no-outline" tabindex="0">
+                  <div class="col-grow">{{ SavePath }}</div>
+                  <q-btn v-if="SavePath" size="xs" flat round icon="close" @click="ClearPrintPath" />
+                </div>
               </template>
             </q-field>
           </q-card-section>
@@ -68,8 +74,24 @@
             <div class="row justify-center q-gutter-sm">
               <!-- eslint-disable -->
 
-              <q-card v-for="print in Prints" class="q-ma-sm justify-center">
-                <img class="justify-center" style="width: fit-content;" :src="`data:image/png;base64,${print}`" />
+              <q-card v-for="(print, index) in Prints" :key="index" class="q-ma-sm justify-center">
+                <img class="justify-center" style="width: fit-content; cursor: pointer;" :src="`data:image/png;base64,${print}`" />
+                <q-menu touch-position context-menu>
+                  <q-list dense style="min-width: 150px">
+                    <q-item clickable v-close-popup @click="copyToClipboard(print)">
+                      <q-item-section avatar>
+                        <q-icon name="content_copy" size="sm" />
+                      </q-item-section>
+                      <q-item-section>Copy to Clipboard</q-item-section>
+                    </q-item>
+                    <q-item clickable v-close-popup @click="removePrint(index)">
+                      <q-item-section avatar>
+                        <q-icon name="delete" size="sm" color="negative" />
+                      </q-item-section>
+                      <q-item-section>Remove</q-item-section>
+                    </q-item>
+                  </q-list>
+                </q-menu>
               </q-card>
               <!-- eslint-enable -->
 
@@ -82,12 +104,17 @@
 </template>
 
 <script setup>
-import { GetHeight, GetPrinterPort, GetWidth, GetPrinterRunStatus, SetPrintDirectory, UpdateHeight, UpdatePrinterPort, UpdatePrinterDPI, GetPrinterDPI, UpdateWidth, StartPrinterServer, StopPrintServer, UpdateSave, GetPrinterRotation, SetPrinterRotation } from 'app/wailsjs/go/main/App';
-import { onMounted, ref, watch } from 'vue';
-import { EventsOn } from "app/wailsjs/runtime/runtime";
+import { GetHeight, GetPrinterPort, GetWidth, GetPrinterRunStatus, SetPrintDirectory, UpdateHeight, UpdatePrinterPort, UpdatePrinterDPI, GetPrinterDPI, UpdateWidth, StartPrinterServer, StopPrintServer, UpdateSave, GetPrinterRotation, SetPrinterRotation, GetPrintDirectory, ClearPrintDirectory, SetPrinterEmulatorMode, GetPrinters, GetAutoStart, SetAutoStart, GetAutoStartServer, SetAutoStartServer } from 'app/wailsjs/go/main/App';
+import { ref, onMounted, onUnmounted, watch } from 'vue'
+import { EventsOn, EventsOff } from "app/wailsjs/runtime/runtime";
+
 const block = ref(false)
+let statusPollInterval = null
+let debounceTimers = {}
 const PrinterOn = ref(false)
 const PrinterSave = ref(false)
+const AutoStartEnabled = ref(false)
+const AutoStartServerEnabled = ref(false)
 const PrintWidth = ref("4")
 const PrintHeight = ref("8")
 const PrinterPort = ref("9100")
@@ -122,11 +149,55 @@ const options = [
   }
 ]
 
+const selectedPrinter = ref(null)
+const printerOptions = ref([])
+const selectedPrinterType = ref('')
+const printDestination = ref('printer')
+const printDestinationOptions = [
+  { label: 'Printer', value: 'printer' },
+  { label: 'Screen', value: 'screen' }
+]
+const ippDisplayOption = ref('show')
+const ippDisplayOptions = [
+  { label: 'Display Print', value: 'show' },
+  { label: 'Do Not Display Print', value: 'hide' }
+]
+
+async function loadPrinterOptions() {
+  const printers = await GetPrinters()
+  printerOptions.value = printers.map(p => ({ label: p.printerName, value: p.printerID, type: p.printerType }))
+}
+
 onMounted(async () => {
+  await SetPrinterEmulatorMode()
   await GetPrinterSetPoints()
-  await CheckPrinterStatus()
+  await loadAutoStartStatus()
   await GetRotation()
+  await loadPrinterOptions()
+  // Start polling with interval instead of infinite loop
+  statusPollInterval = setInterval(async () => {
+    await GetPrinterStatus()
+  }, 5000)
 })
+
+onUnmounted(() => {
+  // Cleanup polling interval
+  if (statusPollInterval) {
+    clearInterval(statusPollInterval)
+    statusPollInterval = null
+  }
+  // Cleanup debounce timers
+  Object.values(debounceTimers).forEach(timer => clearTimeout(timer))
+  debounceTimers = {}
+  // Cleanup event listeners
+  EventsOff("NewPrint")
+  EventsOff("Unblock")
+})
+
+async function loadAutoStartStatus() {
+  AutoStartEnabled.value = await GetAutoStart()
+  AutoStartServerEnabled.value = await GetAutoStartServer()
+}
 
 EventsOn("NewPrint", function (data) {
   AddPrintToQueue(data)
@@ -134,15 +205,13 @@ EventsOn("NewPrint", function (data) {
 EventsOn("Unblock", function () {
   block.value = false
 });
-const delay = ms => new Promise(res => setTimeout(res, ms));
 
-async function CheckPrinterStatus() {
-  while (true) {
-    await GetPrinterStatus()
-    await delay(5000);
-    console.log(PrinterOn.value)
-    console.log(block.value)
+// Debounce helper function
+function debounce(key, fn, delay = 500) {
+  if (debounceTimers[key]) {
+    clearTimeout(debounceTimers[key])
   }
+  debounceTimers[key] = setTimeout(fn, delay)
 }
 async function SetSaveFile() {
   await UpdateSave(PrinterSave.value)
@@ -164,9 +233,8 @@ async function GetRotation() {
   });
 }
 function AddPrintToQueue(byteArray) {
-  Prints.value = Prints.value.reverse()
-  Prints.value.push(byteArray)
-  Prints.value = Prints.value.reverse()
+  // Use unshift to prepend instead of double-reverse (O(n) vs O(2n))
+  Prints.value.unshift(byteArray)
 }
 function ClearPrints() {
   Prints.value = []
@@ -204,25 +272,56 @@ async function GetPrinterSetPoints() {
       return
     }
   });
+  await GetPrinterRotation().then((result) => {
+    if (result != null) {
+      Rotation.value = result
+      return
+    }
+  });
+  await GetPrintDirectory().then((result) => {
+    if (result != null) {
+      SavePath.value = result
+      return
+    }
+  });
 }
-watch(PrintWidth, async () => {
-  await UpdateWidth(parseInt(PrintWidth.value))
+// Debounced watchers to prevent excessive API calls
+watch(PrintWidth, () => {
+  debounce('width', async () => {
+    await UpdateWidth(parseInt(PrintWidth.value))
+  })
 })
-watch(Rotation, async () => {
-  await SetPrinterRotation(Rotation.value)
+watch(Rotation, () => {
+  debounce('rotation', async () => {
+    await SetPrinterRotation(Rotation.value)
+  })
 })
-watch(PrintHeight, async () => {
-  await UpdateHeight(parseInt(PrintHeight.value))
+watch(PrintHeight, () => {
+  debounce('height', async () => {
+    await UpdateHeight(parseInt(PrintHeight.value))
+  })
 })
-watch(PrinterPort, async () => {
-  await UpdatePrinterPort(parseInt(PrinterPort.value))
+watch(PrinterPort, () => {
+  debounce('port', async () => {
+    await UpdatePrinterPort(parseInt(PrinterPort.value))
+  })
 })
-watch(PrinterDPI, async () => {
-  await UpdatePrinterDPI(PrinterDPI.value)
+watch(PrinterDPI, () => {
+  debounce('dpi', async () => {
+    await UpdatePrinterDPI(PrinterDPI.value)
+  })
 })
 
 watch(PrinterSave, async () => {
   await SetSaveFile()
+})
+
+watch(AutoStartEnabled, async () => {
+  await SetAutoStart(AutoStartEnabled.value)
+})
+
+watch(AutoStartServerEnabled, async () => {
+  await SetAutoStartServer(AutoStartServerEnabled.value)
 })
 async function GetPrinterStatus() {
   await GetPrinterRunStatus().then((result) => {
@@ -254,5 +353,45 @@ async function StopPrinter() {
   } finally {
   }
 
+}
+async function ClearPrintPath() {
+  SavePath.value = ""
+  ClearPrintDirectory()
+  console.log("Cleared")
+}
+watch(selectedPrinter, (val) => {
+  const found = printerOptions.value.find(p => p.value === val)
+  selectedPrinterType.value = found ? found.type : ''
+})
+
+// Copy base64 PNG image to clipboard
+async function copyToClipboard(base64Data) {
+  try {
+    // Convert base64 to blob
+    const response = await fetch(`data:image/png;base64,${base64Data}`)
+    const blob = await response.blob()
+
+    // Use Clipboard API to write the image
+    await navigator.clipboard.write([
+      new ClipboardItem({
+        [blob.type]: blob
+      })
+    ])
+    console.log('Image copied to clipboard')
+  } catch (err) {
+    console.error('Failed to copy image to clipboard:', err)
+    // Fallback: try to copy as text (base64)
+    try {
+      await navigator.clipboard.writeText(base64Data)
+      console.log('Base64 data copied to clipboard as text')
+    } catch (fallbackErr) {
+      console.error('Fallback copy also failed:', fallbackErr)
+    }
+  }
+}
+
+// Remove a print from the queue
+function removePrint(index) {
+  Prints.value.splice(index, 1)
 }
 </script>

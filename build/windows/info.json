@@ -4,8 +4,8 @@
 	},
 	"info": {
 		"0000": {
-			"ProductVersion": "2.0",
-			"CompanyName": "David Chupp",
+			"ProductVersion": "2.3.0",
+			"CompanyName": "DataMagik",
 			"FileDescription": "ZPL Printer Emulator",
 			"LegalCopyright": "{{.Info.Copyright}}",
 			"ProductName": "ZPL Printer Emulator",

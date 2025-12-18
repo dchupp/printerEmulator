@@ -129,6 +129,30 @@ export namespace http {
 
 export namespace main {
 	
+	export class Printer {
+	    printerID: number;
+	    printerName: string;
+	    ipAddress: string;
+	    printerPort: number;
+	    printerType: string;
+	    ippEndpoint: string;
+	    useTLS: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new Printer(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.printerID = source["printerID"];
+	        this.printerName = source["printerName"];
+	        this.ipAddress = source["ipAddress"];
+	        this.printerPort = source["printerPort"];
+	        this.printerType = source["printerType"];
+	        this.ippEndpoint = source["ippEndpoint"];
+	        this.useTLS = source["useTLS"];
+	    }
+	}
 	export class PrinterDPI {
 	    value: number;
 	    desc: string;
@@ -141,6 +165,20 @@ export namespace main {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.value = source["value"];
 	        this.desc = source["desc"];
+	    }
+	}
+	export class RelayGroup {
+	    groupID: number;
+	    printerIDs: number[];
+	
+	    static createFrom(source: any = {}) {
+	        return new RelayGroup(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.groupID = source["groupID"];
+	        this.printerIDs = source["printerIDs"];
 	    }
 	}
 	export class TCPServer {
@@ -322,6 +360,7 @@ export namespace tls {
 	    HandshakeComplete: boolean;
 	    DidResume: boolean;
 	    CipherSuite: number;
+	    CurveID: number;
 	    NegotiatedProtocol: string;
 	    NegotiatedProtocolIsMutual: boolean;
 	    ServerName: string;
@@ -342,6 +381,7 @@ export namespace tls {
 	        this.HandshakeComplete = source["HandshakeComplete"];
 	        this.DidResume = source["DidResume"];
 	        this.CipherSuite = source["CipherSuite"];
+	        this.CurveID = source["CurveID"];
 	        this.NegotiatedProtocol = source["NegotiatedProtocol"];
 	        this.NegotiatedProtocolIsMutual = source["NegotiatedProtocolIsMutual"];
 	        this.ServerName = source["ServerName"];

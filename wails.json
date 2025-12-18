@@ -7,7 +7,14 @@
   "frontend:dev:watcher": "npm run dev",
   "frontend:dev:serverUrl": "http://localhost:5173",
   "author": {
-    "name": "David Allen LaVon Chupp",
-    "email": "davidchupp@gmail.com"
+    "name": "David Chupp",
+    "email": "david-chupp@data-magik.com"
+  },
+  "info": {
+    "companyName": "DataMagik",
+    "productName": "ZPL Printer Emulator",
+    "productVersion": "2.3.0",
+    "copyright": "Copyright 2025 Chupp Consulting, LLC",
+    "comments": "Be safe out there in the tall grass. Take this emulator with you!"
   }
 }
