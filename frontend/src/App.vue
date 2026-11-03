@@ -4,7 +4,7 @@
       <q-toolbar class="q-px-md" style="min-height: 60px">
         <q-btn flat dense round icon="menu" aria-label="Menu" @click="mini = !mini" />
         <div class="row items-center no-wrap q-ml-sm">
-          <q-avatar size="34px" class="brand-mark"><q-icon name="print" size="20px" /></q-avatar>
+          <img src="/appicon.svg" alt="" class="brand-mark" />
           <div class="q-ml-sm column">
             <span class="text-subtitle1 text-weight-bold leading-tight">Printer Emulator</span>
             <span class="text-caption header-sub leading-tight">ZPL · rendered locally</span>

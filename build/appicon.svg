@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024" fill="none">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1024" y2="1024" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#5128BC"/><stop offset="1" stop-color="#2A0E86"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="770" cy="250" r="230" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#3FE6FA" stop-opacity="0.55"/><stop offset="1" stop-color="#3FE6FA" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="body" x1="0" y1="380" x2="0" y2="660" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFFFFF"/><stop offset="1" stop-color="#E4DCFA"/>
+    </linearGradient>
+  </defs>
+  <rect width="1024" height="1024" rx="232" fill="url(#bg)"/>
+  <circle cx="770" cy="250" r="230" fill="url(#glow)"/>
+
+  <!-- paper feeding in -->
+  <rect x="330" y="200" width="300" height="230" rx="22" fill="#FFFFFF" opacity="0.9"/>
+  <!-- printer body -->
+  <rect x="190" y="390" width="644" height="270" rx="64" fill="url(#body)"/>
+  <!-- output slot -->
+  <rect x="290" y="590" width="444" height="34" rx="17" fill="#2A0E86"/>
+  <!-- status light -->
+  <circle cx="742" cy="470" r="24" fill="#3FE6FA"/>
+  <!-- label coming out -->
+  <path d="M310 607 H714 V838 Q714 862 690 862 H334 Q310 862 310 838 Z" fill="#FFFFFF"/>
+  <g fill="#2A0E86">
+    <rect x="352" y="652" width="14" height="118"/><rect x="380" y="652" width="26" height="118"/>
+    <rect x="420" y="652" width="10" height="118"/><rect x="444" y="652" width="20" height="118"/>
+    <rect x="478" y="652" width="10" height="118"/><rect x="502" y="652" width="30" height="118"/>
+    <rect x="546" y="652" width="12" height="118"/><rect x="572" y="652" width="22" height="118"/>
+    <rect x="608" y="652" width="10" height="118"/><rect x="632" y="652" width="12" height="118"/>
+    <rect x="658" y="652" width="14" height="118"/>
+    <rect x="352" y="796" width="200" height="16" rx="8" opacity="0.35"/>
+  </g>
+
+  <!-- DataMagik sparkle -->
+  <g stroke="#3FE6FA" stroke-width="16" stroke-linecap="round">
+    <path d="M770 120 V160"/><path d="M890 250 H930"/><path d="M856 164 L884 136"/><path d="M684 164 L656 136"/>
+  </g>
+  <path d="M770 168 Q786 234 852 250 Q786 266 770 332 Q754 266 688 250 Q754 234 770 168 Z" fill="#3FE6FA"/>
+  <g transform="rotate(45 770 250)"><path d="M770 206 Q779 241 814 250 Q779 259 770 294 Q761 259 726 250 Q761 241 770 206 Z" fill="#FFFFFF"/></g>
+</svg>
