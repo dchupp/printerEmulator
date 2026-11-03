@@ -1,1 +1,357 @@
-// app global css in SCSS form
+// Printer Emulator — deep purple theme, light and dark.
+
+:root {
+  --pe-page: #f4f2fa;
+  --pe-surface: #ffffff;
+  --pe-surface-2: #f8f7fc;
+  --pe-border: rgba(60, 40, 120, 0.12);
+  --pe-text-soft: #6b6880;
+  --pe-wall: #e9e6f3;
+  --pe-paper-shadow: 0 1px 2px rgba(30, 20, 60, 0.12), 0 6px 18px rgba(30, 20, 60, 0.10);
+  --pe-header: linear-gradient(100deg, #4527a0 0%, #5e35b1 45%, #7c4dff 100%);
+  --pe-nav-active: rgba(124, 77, 255, 0.12);
+  --pe-code: #f3f1f9;
+}
+
+body.body--dark {
+  --pe-page: #15121f;
+  --pe-surface: #1e1a2b;
+  --pe-surface-2: #231f33;
+  --pe-border: rgba(200, 180, 255, 0.10);
+  --pe-text-soft: #a19cb8;
+  --pe-wall: #110e19;
+  --pe-paper-shadow: 0 1px 2px rgba(0, 0, 0, 0.5), 0 8px 24px rgba(0, 0, 0, 0.45);
+  --pe-header: linear-gradient(100deg, #2a1a5e 0%, #3b2385 50%, #5b34d6 100%);
+  --pe-nav-active: rgba(179, 136, 255, 0.16);
+  --pe-code: #17141f;
+}
+
+body {
+  background: var(--pe-page);
+  -webkit-font-smoothing: antialiased;
+}
+
+.q-card,
+.q-menu,
+.q-dialog .q-card {
+  background: var(--pe-surface);
+}
+.q-card--bordered,
+.q-separator {
+  border-color: var(--pe-border);
+}
+.q-separator {
+  background: var(--pe-border);
+}
+
+code {
+  background: var(--pe-code);
+  border-radius: 4px;
+  padding: 1px 5px;
+  font-size: 0.92em;
+}
+
+.leading-tight { line-height: 1.15; }
+.hidden { display: none; }
+
+// ---- header ----------------------------------------------------------------
+
+.app-header {
+  background: var(--pe-header);
+  box-shadow: 0 2px 12px rgba(40, 20, 100, 0.25);
+}
+.brand-mark {
+  width: 36px;
+  height: 36px;
+  border-radius: 9px;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.25), 0 2px 6px rgba(20, 0, 60, 0.35);
+}
+.header-sub { opacity: 0.75; }
+.dm-logo {
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.25);
+}
+.version-chip {
+  background: rgba(255, 255, 255, 0.14) !important;
+  color: #fff !important;
+}
+
+.server-control {
+  .status-pill {
+    height: 34px;
+    padding: 0 14px;
+    border-radius: 17px;
+    background: rgba(0, 0, 0, 0.18);
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    font-size: 13px;
+    max-width: 280px;
+  }
+  .status-dot {
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    flex: none;
+    background: #9e9e9e;
+  }
+  .is-on .status-dot {
+    background: #4ade80;
+    box-shadow: 0 0 0 0 rgba(74, 222, 128, 0.7);
+    animation: pulse 2s infinite;
+  }
+  .is-error .status-dot { background: #ff6b6b; }
+  .mode-btn {
+    background: rgba(255, 255, 255, 0.14);
+    color: #fff;
+    height: 34px;
+    border-radius: 8px;
+    .q-btn__content { font-size: 13px; }
+  }
+  .power-btn {
+    height: 34px;
+    border-radius: 8px;
+    min-width: 88px;
+  }
+}
+
+@keyframes pulse {
+  0% { box-shadow: 0 0 0 0 rgba(74, 222, 128, 0.6); }
+  70% { box-shadow: 0 0 0 7px rgba(74, 222, 128, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(74, 222, 128, 0); }
+}
+
+// ---- navigation --------------------------------------------------------------
+
+.app-drawer .q-drawer {
+  background: var(--pe-surface);
+  border-color: var(--pe-border) !important;
+}
+.nav-list { padding: 8px; }
+.nav-item {
+  border-radius: 10px;
+  margin-bottom: 4px;
+  min-height: 44px;
+  color: var(--pe-text-soft);
+  .q-item__section--avatar { min-width: 40px; }
+}
+.nav-active {
+  background: var(--pe-nav-active);
+  color: $primary;
+  font-weight: 600;
+}
+body.body--dark .nav-active { color: $accent; }
+
+// ---- labels page -----------------------------------------------------------------
+
+.labels-page { height: calc(100vh - 60px); }
+
+.media-bar {
+  background: var(--pe-surface);
+  border-bottom: 1px solid var(--pe-border);
+  .stats { color: var(--pe-text-soft); b { color: inherit; font-weight: 600; } }
+}
+body:not(.body--dark) .media-bar .stats b { color: #2d2640; }
+body.body--dark .media-bar .stats b { color: #ece9f6; }
+
+.rot-toggle {
+  border: 1px solid var(--pe-border);
+  border-radius: 6px;
+  .q-btn { padding: 4px 10px; min-height: 38px; }
+}
+
+.mode-banner {
+  background: var(--pe-nav-active);
+  border-bottom: 1px solid var(--pe-border);
+}
+
+.label-wall-scroll {
+  overflow: auto;
+  background: var(--pe-wall);
+  background-image: radial-gradient(var(--pe-border) 1px, transparent 1px);
+  background-size: 18px 18px;
+}
+
+.label-wall {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  align-content: flex-start;
+  gap: 20px;
+  padding: 20px;
+}
+
+.label-card {
+  display: flex;
+  flex-direction: column;
+  border-radius: 10px;
+  transition: transform 0.12s ease;
+  content-visibility: auto;
+  contain-intrinsic-size: 300px 450px;
+  &.fresh .label-paper { outline: 2px solid $accent; outline-offset: 3px; animation: arrive 0.35s ease-out; }
+}
+
+@keyframes arrive {
+  from { opacity: 0; transform: translateY(-8px) scale(0.98); }
+  to { opacity: 1; transform: none; }
+}
+
+.label-paper {
+  background: #fff;
+  border-radius: 4px;
+  box-shadow: var(--pe-paper-shadow);
+  overflow: hidden;
+  cursor: zoom-in;
+  img {
+    display: block;
+    width: 100%;
+    height: auto;
+    image-rendering: auto;
+  }
+}
+
+.label-meta {
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--pe-text-soft);
+  min-width: 0;
+  .q-btn { color: var(--pe-text-soft); }
+}
+.act-icon { min-width: 36px !important; }
+
+.activity-panel {
+  width: 320px;
+  flex: none;
+  background: var(--pe-surface);
+  border-left: 1px solid var(--pe-border);
+}
+.slide-enter-active, .slide-leave-active { transition: width 0.18s ease, opacity 0.18s ease; }
+.slide-enter-from, .slide-leave-to { width: 0; opacity: 0; }
+
+.empty-state {
+  min-height: 100%;
+  padding: 48px 24px;
+}
+.empty-art {
+  width: 104px;
+  height: 104px;
+  border-radius: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: $primary;
+  background: var(--pe-nav-active);
+}
+
+// ---- viewer ------------------------------------------------------------------------
+
+.viewer {
+  width: 100vw;
+  height: 100vh;
+  background: var(--pe-page);
+}
+.viewer-stage { min-width: 0; }
+.viewer-toolbar {
+  background: var(--pe-surface);
+  border-bottom: 1px solid var(--pe-border);
+}
+.viewer-canvas {
+  overflow: auto;
+  background: var(--pe-wall);
+  padding: 32px;
+  display: flex;
+  .label-paper.big { margin: auto; cursor: default; flex: none; }
+  &.fit .label-paper.big {
+    max-width: 100%;
+    max-height: 100%;
+    img { max-height: calc(100vh - 130px); width: auto; max-width: 100%; }
+  }
+  &:not(.fit) .label-paper.big img { width: auto; max-width: none; }
+}
+.viewer-side {
+  width: 380px;
+  flex: none;
+  background: var(--pe-surface);
+  border-left: 1px solid var(--pe-border);
+}
+
+.zpl-source {
+  margin: 0;
+  padding: 12px;
+  border-radius: 8px;
+  background: var(--pe-code);
+  font: 12px/1.5 ui-monospace, 'Cascadia Code', Consolas, Menlo, monospace;
+  white-space: pre-wrap;
+  word-break: break-all;
+  max-height: calc(100vh - 150px);
+  overflow: auto;
+}
+.warning-line {
+  font: 12px/1.5 ui-monospace, Consolas, Menlo, monospace;
+  padding: 4px 0;
+  border-bottom: 1px dashed var(--pe-border);
+}
+
+// ---- editor ------------------------------------------------------------------------
+
+.editor-page { height: calc(100vh - 60px); }
+.editor-pane { min-width: 0; background: var(--pe-surface); }
+.toolbar { background: var(--pe-surface); min-height: 52px; }
+.zpl-input {
+  border: 0;
+  outline: 0;
+  resize: none;
+  padding: 16px;
+  background: var(--pe-code);
+  color: inherit;
+  font: 13px/1.6 ui-monospace, 'Cascadia Code', Consolas, Menlo, monospace;
+  tab-size: 2;
+}
+.preview-pane {
+  width: 44%;
+  min-width: 340px;
+  border-left: 1px solid var(--pe-border);
+  background: var(--pe-surface);
+}
+.preview-canvas {
+  background: var(--pe-wall);
+  .label-paper { cursor: default; max-width: 100%; margin-left: auto; margin-right: auto; }
+}
+.warnings-box { max-height: 160px; overflow: auto; }
+
+// ---- printers / relay / settings -----------------------------------------------------
+
+.page-narrow { max-width: 1100px; margin: 0 auto; }
+
+.printer-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 16px;
+}
+.printer-card {
+  border-radius: 12px;
+  transition: border-color 0.15s, box-shadow 0.15s;
+  &.selected {
+    border-color: $primary;
+    box-shadow: 0 0 0 1px $primary;
+  }
+}
+.mode-card {
+  border-radius: 12px;
+  background: var(--pe-nav-active);
+}
+.type-toggle {
+  border: 1px solid var(--pe-border);
+  border-radius: 8px;
+}
+
+.settings-page .q-card { border-radius: 12px; }
+.section-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  font-size: 15px;
+  margin-bottom: 14px;
+  .q-icon { color: $primary; font-size: 20px; }
+}

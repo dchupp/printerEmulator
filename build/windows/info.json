@@ -1,13 +1,15 @@
 {
 	"fixed": {
-		"file_version": "{{.Info.ProductVersion}}"
+		"file_version": "3.0.0",
+		"product_version": "3.0.0"
 	},
 	"info": {
-		"0000": {
-			"ProductVersion": "2.3.0",
+		"0409": {
+			"FileVersion": "3.0.0",
+			"ProductVersion": "3.0.0",
 			"CompanyName": "DataMagik",
-			"FileDescription": "ZPL Printer Emulator",
-			"LegalCopyright": "{{.Info.Copyright}}",
+			"FileDescription": "Emulates a Zebra ZPL printer: preview, forward and relay labels",
+			"LegalCopyright": "Copyright 2026 Chupp Consulting, LLC",
 			"ProductName": "ZPL Printer Emulator",
 			"Comments": "Be safe out there in the tall grass. Take this emulator with you!"
 		}

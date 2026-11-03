@@ -1,11 +1,7 @@
-PrinterEmulator-Linux.exe
-PrinterEmulator-Mac.exe
-PrinterEmulator-Windows.exe
-PrinterEmulator-OSX.exe
-build/bin/Printer Emulator-amd64-installer.exe
-build/bin/Printer Emulator.exe
-build/bin/Printer_Emulator.exe
-build/bin/Printer_Emulator.exe
-build/bin/Printer_Emulator.exe
-.claude/
+.task
+.wails
+bin
+frontend/node_modules
+frontend/dist/*
+!frontend/dist/.gitkeep
 *.exe

@@ -1,0 +1,13 @@
+[Desktop Entry]
+Version=1.0
+Name=ZPL Printer Emulator
+Comment=Emulates a Zebra ZPL printer: preview, forward and relay labels
+Exec=PrinterEmulator
+Terminal=false
+Type=Application
+Icon=PrinterEmulator
+Categories=Utility;Development;
+Keywords=zpl;zebra;label;printer;
+StartupWMClass=PrinterEmulator
+
+ 
