@@ -111,6 +111,22 @@ export async function refreshStats () {
 
 let started = false
 
+// On a cold start the webview can come up before the bridge to Go answers,
+// so the first calls are retried instead of leaving the app on a spinner.
+async function withRetry (fn, attempts = 5, timeoutMs = 3000) {
+  for (let i = 1; ; i++) {
+    try {
+      return await Promise.race([
+        fn(),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('The emulator backend did not respond')), timeoutMs))
+      ])
+    } catch (e) {
+      if (i >= attempts) throw e
+      await new Promise(r => setTimeout(r, 300 * i))
+    }
+  }
+}
+
 export async function init () {
   if (started) return
   started = true
@@ -141,12 +157,12 @@ export async function init () {
     if (!pending) state.settings = e.data
   })
 
-  const [version, settings, status, labels, jobs, stats, autoStart] = await Promise.all([
+  const [version, settings, status, labels, jobs, stats, autoStart] = await withRetry(() => Promise.all([
     api.Version(), api.Settings(), api.Status(), api.Labels(), api.Jobs(), api.Stats(), api.AutoStartEnabled()
-  ])
+  ]))
   Object.assign(state, { version, settings, status, labels: labels || [], jobs: jobs || [], stats, autoStart })
   applyTheme(settings.theme)
-  await refreshPrinters()
+  await withRetry(refreshPrinters)
   state.ready = true
 }
 

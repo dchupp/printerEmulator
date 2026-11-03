@@ -20,9 +20,17 @@ Version 3 draws labels **on your computer** with [DataMagik ZPL-To-Image](https:
 
 ## Install
 
-1. Download the app from the [releases page](https://github.com/dchupp/printerEmulator/releases/).
-2. Install a Zebra ZPL driver. The easiest way is [Zebra Setup Utilities](https://www.zebra.com/us/en/support-downloads/printer-software/printer-setup-utilities.html). Any ZPL driver from Zebra works.
-3. Add a network printer at **IP address `127.0.0.1`, port `9100`** using that driver ([Zebra's guide](https://supportcommunity.zebra.com/s/article/Adding-a-networked-Zebra-Printer-to-a-Windows-10-PC?language=en_US)).
+1. Download the app for your system from the [releases page](https://github.com/dchupp/printerEmulator/releases/latest):
+
+   | System | File | Install |
+   |---|---|---|
+   | Windows 10/11 | `…-windows-amd64-installer.exe` | Run it. Or use `…-portable.exe`, which needs no install. |
+   | Ubuntu 24.04+ / Debian 13+ | `…-ubuntu-amd64.deb` | `sudo apt install ./ZPL-Printer-Emulator-*.deb` |
+   | Fedora 40+ | `…-fedora-x86_64.rpm` | `sudo dnf install ./ZPL-Printer-Emulator-*.rpm` |
+
+   The Windows files are not code-signed yet, so SmartScreen may ask you to confirm (**More info → Run anyway**). On Linux the app needs GTK 4 and WebKitGTK 6.0, which the package installs; older releases such as Ubuntu 22.04 don't have them.
+2. On Windows, install a Zebra ZPL driver. The easiest way is [Zebra Setup Utilities](https://www.zebra.com/us/en/support-downloads/printer-software/printer-setup-utilities.html). Any ZPL driver from Zebra works.
+3. Add a network printer at **IP address `127.0.0.1`, port `9100`** using that driver (on Linux, add a raw/AppSocket printer at `socket://127.0.0.1:9100` in CUPS, or send ZPL straight to the port) ([Zebra's guide](https://supportcommunity.zebra.com/s/article/Adding-a-networked-Zebra-Printer-to-a-Windows-10-PC?language=en_US)).
 4. Open the emulator, set the label size and density, and press **Start**.
 
 ## Using it
@@ -78,6 +86,16 @@ Your settings, network printers and relay groups are imported the first time ver
 - **Nothing appears in Forward or Relay mode**: that's expected; labels are only previewed in those modes when **Also show labels** is on.
 
 ![Dark theme](docs/labels-dark.png)
+
+## Releasing
+
+Pushing a version tag builds the Windows installer and the Ubuntu and Fedora packages, test-installs the Linux packages on Ubuntu and Fedora, and publishes everything on the Releases page (`.github/workflows/release.yml`):
+
+```sh
+git tag v3.0.0 && git push origin v3.0.0
+```
+
+Every pull request runs the same builds without publishing.
 
 ## Develop
 

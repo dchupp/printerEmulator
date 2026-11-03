@@ -1,0 +1,161 @@
+name: Build & release
+
+# Every pull request builds and test-installs all packages.
+# Pushing a tag such as v3.0.0 also publishes them on the Releases page.
+on:
+  pull_request:
+  push:
+    branches: [master]
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  WAILS_VERSION: v3.1.0
+  APP: ZPL-Printer-Emulator
+
+jobs:
+  test:
+    name: Go tests
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: Install GTK / WebKitGTK
+        run: sudo apt-get update && sudo apt-get install -y libgtk-4-dev libwebkitgtk-6.0-dev
+      - run: go vet ./...
+      - run: go test -race ./...
+
+  windows:
+    name: Windows installer
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install Wails CLI and NSIS
+        shell: pwsh
+        run: |
+          go install github.com/wailsapp/wails/v3/cmd/wails3@${{ env.WAILS_VERSION }}
+          if (-not (Get-Command makensis -ErrorAction SilentlyContinue)) { choco install nsis -y --no-progress }
+          "C:\Program Files (x86)\NSIS" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+      - name: Build installer
+        run: wails3 package
+      - name: Collect files
+        shell: pwsh
+        run: |
+          $v = "${{ github.ref_type == 'tag' && github.ref_name || 'dev' }}"
+          New-Item -ItemType Directory -Force dist | Out-Null
+          Copy-Item bin\PrinterEmulator-amd64-installer.exe "dist\$env:APP-$v-windows-amd64-installer.exe"
+          Copy-Item bin\PrinterEmulator.exe "dist\$env:APP-$v-windows-amd64-portable.exe"
+          Get-ChildItem dist
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows
+          path: dist/*
+          if-no-files-found: error
+
+  linux:
+    name: Linux packages (.deb, .rpm)
+    # Built on Ubuntu 24.04 (glibc 2.39) so the binary also runs on Fedora 40+.
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install GTK / WebKitGTK and Wails CLI
+        run: |
+          sudo apt-get update && sudo apt-get install -y libgtk-4-dev libwebkitgtk-6.0-dev
+          go install github.com/wailsapp/wails/v3/cmd/wails3@${{ env.WAILS_VERSION }}
+      - name: Build packages
+        run: |
+          wails3 task linux:create:deb
+          wails3 task linux:create:rpm
+      - name: Collect files
+        run: |
+          v="${{ github.ref_type == 'tag' && github.ref_name || 'dev' }}"
+          mkdir -p dist
+          cp bin/PrinterEmulator.deb "dist/$APP-$v-ubuntu-amd64.deb"
+          cp bin/PrinterEmulator.rpm "dist/$APP-$v-fedora-x86_64.rpm"
+          ls -la dist
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linux
+          path: dist/*
+          if-no-files-found: error
+
+  install-ubuntu:
+    name: Install test (Ubuntu 24.04)
+    needs: linux
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: linux
+      - name: Install .deb
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ./*.deb
+          missing=$(ldd /usr/bin/PrinterEmulator | grep "not found" || true)
+          [ -z "$missing" ] || { echo "$missing"; exit 1; }
+          test -f /usr/share/applications/PrinterEmulator.desktop
+
+  install-fedora:
+    name: Install test (Fedora)
+    needs: linux
+    runs-on: ubuntu-24.04
+    container: fedora:latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: linux
+      - name: Install .rpm
+        run: |
+          cat /etc/fedora-release
+          dnf install -y ./*.rpm
+          missing=$(ldd /usr/bin/PrinterEmulator | grep "not found" || true)
+          [ -z "$missing" ] || { echo "$missing"; exit 1; }
+          test -f /usr/share/applications/PrinterEmulator.desktop
+
+  release:
+    name: Publish release
+    if: github.ref_type == 'tag'
+    needs: [test, windows, install-ubuntu, install-fedora]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+      - name: Checksums
+        run: cd dist && sha256sum * > SHA256SUMS.txt && cat SHA256SUMS.txt
+      - uses: softprops/action-gh-release@v2
+        with:
+          name: ZPL Printer Emulator ${{ github.ref_name }}
+          generate_release_notes: true
+          files: dist/*
+          body: |
+            ## Downloads
+
+            | System | File |
+            |---|---|
+            | Windows 10/11 | `${{ env.APP }}-${{ github.ref_name }}-windows-amd64-installer.exe` (or the `-portable.exe`, no install needed) |
+            | Ubuntu 24.04+ / Debian 13+ | `${{ env.APP }}-${{ github.ref_name }}-ubuntu-amd64.deb` — `sudo apt install ./<file>.deb` |
+            | Fedora 40+ | `${{ env.APP }}-${{ github.ref_name }}-fedora-x86_64.rpm` — `sudo dnf install ./<file>.rpm` |
+
+            Labels are rendered locally; no internet connection is needed.
+            The Windows files are not code-signed yet, so SmartScreen may ask you to confirm ("More info" → "Run anyway").

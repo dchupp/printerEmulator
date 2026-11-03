@@ -3,24 +3,26 @@
 #
 # The lines below are called `modelines`. See `:help modeline`
 
-name: "PrinterEmulator"
+name: "zpl-printer-emulator"
 arch: ${GOARCH}
 platform: "linux"
 version: "3.0.0"
-section: "default"
-priority: "extra"
-maintainer: ${GIT_COMMITTER_NAME} <${GIT_COMMITTER_EMAIL}>
+section: "utils"
+priority: "optional"
+maintainer: "David Chupp <david-chupp@data-magik.com>"
 description: "Emulates a Zebra ZPL printer: preview, forward and relay labels"
 vendor: "DataMagik"
-homepage: "https://wails.io"
+homepage: "https://github.com/dchupp/printerEmulator"
 license: "MIT"
 release: "1"
 
 contents:
   - src: "./bin/PrinterEmulator"
-    dst: "/usr/local/bin/PrinterEmulator"
-  - src: "./build/appicon.png"
-    dst: "/usr/share/icons/hicolor/128x128/apps/PrinterEmulator.png"
+    dst: "/usr/bin/PrinterEmulator"
+  - src: "./build/appicon.svg"
+    dst: "/usr/share/icons/hicolor/scalable/apps/PrinterEmulator.svg"
+  - src: "./build/linux/appicon-256.png"
+    dst: "/usr/share/icons/hicolor/256x256/apps/PrinterEmulator.png"
   - src: "./build/linux/PrinterEmulator.desktop"
     dst: "/usr/share/applications/PrinterEmulator.desktop"
 
