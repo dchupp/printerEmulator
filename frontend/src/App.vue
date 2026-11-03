@@ -18,7 +18,9 @@
         <q-space />
 
         <q-btn flat dense no-caps icon="code" label="GitHub" class="q-mr-xs gt-sm" @click="open('https://github.com/dchupp/printerEmulator')" />
-        <q-btn flat dense no-caps icon="auto_fix_high" label="DataMagik" class="q-mr-sm gt-sm" @click="open('https://data-magik.com')" />
+        <q-btn flat dense no-caps class="q-mr-sm gt-sm" @click="open('https://data-magik.com')">
+          <img src="/datamagik.svg" alt="" class="dm-logo q-mr-sm" />DataMagik
+        </q-btn>
         <q-btn flat dense round :icon="themeIcon" @click="cycleTheme">
           <q-tooltip>Theme: {{ state.settings?.theme || 'auto' }}</q-tooltip>
         </q-btn>

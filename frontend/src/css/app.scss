@@ -65,6 +65,12 @@ code {
   border: 1px solid rgba(255, 255, 255, 0.25);
 }
 .header-sub { opacity: 0.75; }
+.dm-logo {
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.25);
+}
 .version-chip {
   background: rgba(255, 255, 255, 0.14) !important;
   color: #fff !important;
