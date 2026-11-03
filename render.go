@@ -79,6 +79,11 @@ func (r *Renderer) Render(data []byte, s Settings) ([]RenderedLabel, []string, e
 	}
 	var out []RenderedLabel
 	warns, err := p.RenderEach(bytes.NewReader(data), func(img image.Image) error {
+		// A format with nothing on it, such as the setup-only ^XA^MCY^XZ
+		// blocks drivers send around a label, feeds no label on a printer.
+		if isBlank(img) {
+			return nil
+		}
 		if len(out) >= maxLabelsPerJob {
 			return errTooManyLabels
 		}
@@ -98,4 +103,27 @@ func (r *Renderer) Render(data []byte, s Settings) ([]RenderedLabel, []string, e
 		err = nil
 	}
 	return out, msgs, err
+}
+
+// isBlank reports whether a label has no black dots.
+func isBlank(img image.Image) bool {
+	b := img.Bounds()
+	if p, ok := img.(image.PalettedImage); ok {
+		for y := b.Min.Y; y < b.Max.Y; y++ {
+			for x := b.Min.X; x < b.Max.X; x++ {
+				if p.ColorIndexAt(x, y) != 0 {
+					return false
+				}
+			}
+		}
+		return true
+	}
+	for y := b.Min.Y; y < b.Max.Y; y++ {
+		for x := b.Min.X; x < b.Max.X; x++ {
+			if r, g, bl, _ := img.At(x, y).RGBA(); r+g+bl < 3*0x8000 {
+				return false
+			}
+		}
+	}
+	return true
 }

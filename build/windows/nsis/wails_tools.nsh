@@ -14,7 +14,7 @@
     !define INFO_PRODUCTNAME "ZPL Printer Emulator"
 !endif
 !ifndef INFO_PRODUCTVERSION
-    !define INFO_PRODUCTVERSION "3.0.0"
+    !define INFO_PRODUCTVERSION "3.0.1"
 !endif
 !ifndef INFO_COPYRIGHT
     !define INFO_COPYRIGHT "Copyright 2026 Chupp Consulting, LLC"

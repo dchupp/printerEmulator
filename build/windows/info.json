@@ -1,12 +1,12 @@
 {
 	"fixed": {
-		"file_version": "3.0.0",
-		"product_version": "3.0.0"
+		"file_version": "3.0.1",
+		"product_version": "3.0.1"
 	},
 	"info": {
 		"0409": {
-			"FileVersion": "3.0.0",
-			"ProductVersion": "3.0.0",
+			"FileVersion": "3.0.1",
+			"ProductVersion": "3.0.1",
 			"CompanyName": "DataMagik",
 			"FileDescription": "Emulates a Zebra ZPL printer: preview, forward and relay labels",
 			"LegalCopyright": "Copyright 2026 Chupp Consulting, LLC",

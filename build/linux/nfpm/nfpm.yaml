@@ -6,7 +6,7 @@
 name: "zpl-printer-emulator"
 arch: ${GOARCH}
 platform: "linux"
-version: "3.0.0"
+version: "3.0.1"
 section: "utils"
 priority: "optional"
 maintainer: "David Chupp <david-chupp@data-magik.com>"
