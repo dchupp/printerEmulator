@@ -1,0 +1,13 @@
+[Desktop Entry]
+Version=1.0
+Name=ZPL Printer Emulator
+Comment=Emulates a Zebra ZPL printer: preview, forward and relay labels
+# The Exec line includes %u to pass the URL to the application
+Exec=/usr/local/bin/PrinterEmulator %u
+Terminal=false
+Type=Application
+Icon=PrinterEmulator
+Categories=Utility;
+StartupWMClass=PrinterEmulator
+
+ 

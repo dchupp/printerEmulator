@@ -1,130 +1,139 @@
 <template>
-  <q-page class="q-pa-md">
-    <q-card>
-      <q-card-section>
-        <div class="text-h5">Printer Relay Setup</div>
-        <q-separator class="q-my-sm" />
-        <q-form @submit.prevent="addRelay">
-          <q-select v-model="selectedPrinters" :options="printerOptions" label="Select Printers to Relay To" multiple
-            emit-value map-options use-chips class="q-mb-md" />
-          <q-btn type="submit" color="primary" label="Add Relay Group" />
-        </q-form>
-      </q-card-section>
-      <q-separator />
-      <q-card-section>
-        <div class="text-subtitle1 q-mb-sm">Relay Groups</div>
-        <q-list bordered separator>
-          <q-item v-for="(group, idx) in relayGroups" :key="idx" clickable @click="selectedGroup = idx"
-            :active="selectedGroup === idx">
-            <q-item-section>
-              <div>
-                <span class="text-bold">Group {{ idx + 1 }}:</span>
-                <span v-for="name in group.PrinterNames" :key="name" class="q-ml-sm">
-                  {{ name }}
-                </span>
-              </div>
-            </q-item-section>
-            <q-item-section side>
-              <q-btn flat icon="delete" color="negative" @click.stop="removeRelay(idx)" />
-            </q-item-section>
-            <q-item-section side v-if="selectedGroup === idx">
-              <q-icon name="check_circle" color="primary" />
-            </q-item-section>
-          </q-item>
-        </q-list>
-      </q-card-section>
-      <q-separator />
-      <q-card-section>
-        <div class="row q-gutter-md items-center">
-          <q-btn @click="StartPrinter()" color="positive" :disable="serviceRunning || selectedGroup === null"
-            label="Start Relay Service" />
-          <q-btn @click="StopPrinter()" color="negative" :disable="!serviceRunning" label="Stop Relay Service" />
-          <q-toggle v-model="serviceRunning" label="Service Running" color="purple-5" disable />
+  <q-page padding class="page-narrow">
+    <div class="row items-end q-mb-md">
+      <div>
+        <div class="text-h5 text-weight-medium">Relay groups</div>
+        <div class="text-body2 text-grey-7">In relay mode every job is sent to all printers of the active group at the same time.</div>
+      </div>
+      <q-space />
+      <q-btn unelevated no-caps color="primary" icon="add" label="New group" :disable="!state.printers.length" @click="edit()" />
+    </div>
+
+    <q-banner v-if="!state.printers.length" rounded class="q-mb-md mode-banner">
+      <template #avatar><q-icon name="info" color="primary" /></template>
+      Add network printers first, then group them here.
+      <template #action><q-btn flat no-caps color="primary" label="Add printers" to="/printers" /></template>
+    </q-banner>
+
+    <q-card v-if="s.mode === 'relay'" flat bordered class="q-mb-md mode-card">
+      <q-card-section class="row items-center q-gutter-sm">
+        <q-icon name="device_hub" size="24px" color="primary" />
+        <div class="col">
+          <div class="text-weight-medium">Relay mode is on</div>
+          <div class="text-caption text-grey-7">Jobs received on port {{ s.port }} go to every printer in the <b>Active</b> group.</div>
         </div>
+        <q-toggle :model-value="s.previewWhileForwarding" label="Also show labels" @update:model-value="v => updateSettings({ previewWhileForwarding: v }, 0)" />
       </q-card-section>
     </q-card>
+
+    <div class="printer-grid">
+      <q-card v-for="g in state.groups" :key="g.groupID" flat bordered class="printer-card" :class="{ selected: isActive(g) }">
+        <q-card-section>
+          <div class="row items-center no-wrap">
+            <q-avatar color="primary" text-color="white" size="42px" icon="device_hub" />
+            <div class="col q-ml-md" style="min-width: 0">
+              <div class="text-subtitle1 text-weight-medium ellipsis">{{ g.name }}</div>
+              <div class="text-caption text-grey-7">{{ g.printerIDs.length }} printer{{ g.printerIDs.length === 1 ? '' : 's' }}</div>
+            </div>
+            <q-chip v-if="isActive(g)" dense square size="sm" color="primary" text-color="white" icon="bolt" label="Active" />
+          </div>
+          <div class="row q-gutter-xs q-mt-sm">
+            <q-chip v-for="id in g.printerIDs" :key="id" dense size="sm" :icon="printerByID[id]?.printerType === 'IPP' ? 'print' : 'qr_code_2'">
+              {{ printerByID[id]?.printerName || `#${id} (deleted)` }}
+            </q-chip>
+          </div>
+        </q-card-section>
+        <q-separator />
+        <q-card-actions>
+          <q-btn v-if="!isActive(g)" flat dense no-caps color="primary" icon="bolt" label="Relay to this group" @click="activate(g)" />
+          <q-btn v-else flat dense no-caps icon="visibility" label="Back to preview" @click="updateSettings({ mode: 'preview' }, 0)" />
+          <q-space />
+          <q-btn flat round dense icon="edit" @click="edit(g)"><q-tooltip>Edit</q-tooltip></q-btn>
+          <q-btn flat round dense icon="delete_outline" color="negative" @click="remove(g)"><q-tooltip>Delete</q-tooltip></q-btn>
+        </q-card-actions>
+      </q-card>
+    </div>
+
+    <q-dialog v-model="dialog">
+      <q-card style="width: 480px; max-width: 92vw">
+        <q-card-section class="row items-center">
+          <div class="text-h6">{{ form.groupID ? 'Edit group' : 'New relay group' }}</div>
+          <q-space />
+          <q-btn flat round dense icon="close" v-close-popup />
+        </q-card-section>
+        <q-form @submit.prevent="save">
+          <q-card-section class="q-pt-none q-gutter-md">
+            <q-input v-model="form.name" outlined dense label="Group name" autofocus placeholder="e.g. Shipping dock" />
+            <div>
+              <div class="text-caption text-grey-7 q-mb-xs">Printers</div>
+              <q-list bordered separator class="rounded-borders">
+                <q-item v-for="p in state.printers" :key="p.printerID" tag="label" v-ripple dense>
+                  <q-item-section avatar><q-checkbox v-model="form.printerIDs" :val="p.printerID" /></q-item-section>
+                  <q-item-section>
+                    <q-item-label>{{ p.printerName }}</q-item-label>
+                    <q-item-label caption>{{ p.printerType }} · {{ p.ipAddress }}:{{ p.printerPort }}</q-item-label>
+                  </q-item-section>
+                </q-item>
+              </q-list>
+            </div>
+          </q-card-section>
+          <q-card-actions align="right" class="q-pa-md">
+            <q-btn flat no-caps label="Cancel" v-close-popup />
+            <q-btn unelevated no-caps color="primary" type="submit" label="Save" :disable="!form.printerIDs.length" :loading="saving" />
+          </q-card-actions>
+        </q-form>
+      </q-card>
+    </q-dialog>
   </q-page>
 </template>
 
 <script setup>
-import { ref, onMounted, watch } from 'vue'
-import { GetPrinters, StartPrinterServer, StopPrintServer, GetPrinterRunStatus, AddRelayGroup, GetRelayGroups, DeleteRelayGroup, SetPrinterRelayMode, SelectRelayGroup } from 'app/wailsjs/go/main/App'
+import { computed, ref } from 'vue'
+import { useQuasar } from 'quasar'
+import { api, state, printerByID, updateSettings, refreshPrinters, notifyError, notifyOK } from '../state'
 
-const printerOptions = ref([])
-const selectedPrinters = ref([])
-const relayGroups = ref([])
-const printers = ref([])
-const selectedGroup = ref(null)
-const serviceRunning = ref(false)
+const $q = useQuasar()
+const s = computed(() => state.settings)
+const dialog = ref(false)
+const saving = ref(false)
+const form = ref({ groupID: 0, name: '', printerIDs: [] })
 
-async function loadPrinters() {
-  printers.value = await GetPrinters()
-  printerOptions.value = printers.value.map(p => ({ label: p.printerName, value: p.printerID }))
-  console.log('Printers:', printerOptions.value)
+function isActive (g) { return s.value.mode === 'relay' && s.value.relayGroupID === g.groupID }
+
+function edit (g) {
+  form.value = g ? { ...g, printerIDs: [...g.printerIDs] } : { groupID: 0, name: '', printerIDs: [] }
+  dialog.value = true
 }
 
-async function loadRelayGroups() {
-  const groups = await GetRelayGroups()
-  if (!groups || !Array.isArray(groups)) {
-    relayGroups.value = []
-    return
+async function save () {
+  saving.value = true
+  try {
+    const g = await api.SaveRelayGroup(form.value)
+    await refreshPrinters()
+    dialog.value = false
+    notifyOK(`Saved ${g.name}`)
+  } catch (e) {
+    notifyError(e)
+  } finally {
+    saving.value = false
   }
-  relayGroups.value = groups.map(g => {
-    // Use printerOptions to get names for each printer ID
-    const names = Array.isArray(g.printerIDs)
-      ? g.printerIDs.map(pid => {
-        const found = printerOptions.value.find(p => p.value === pid)
-        return found ? found.label : pid
-      })
-      : []
-    console.log('Relay Group:', g.groupID, 'Printer IDs:', g.printerIDs, 'Names:', names)
-    return { GroupID: g.groupID, PrinterIDs: g.printerIDs || [], PrinterNames: names }
+}
+
+function activate (g) {
+  updateSettings({ mode: 'relay', relayGroupID: g.groupID }, 0)
+  notifyOK(`Jobs now go to every printer in ${g.name}`)
+}
+
+function remove (g) {
+  $q.dialog({
+    title: `Delete ${g.name}?`,
+    cancel: { flat: true, noCaps: true },
+    ok: { label: 'Delete', color: 'negative', unelevated: true, noCaps: true }
+  }).onOk(async () => {
+    try {
+      await api.DeleteRelayGroup(g.groupID)
+      await refreshPrinters()
+    } catch (e) { notifyError(e) }
   })
 }
-
-async function addRelay() {
-  if (selectedPrinters.value.length > 0) {
-    await AddRelayGroup(selectedPrinters.value)
-    selectedPrinters.value = []
-    await loadRelayGroups()
-  }
-}
-async function removeRelay(idx) {
-  // Need to get the groupID from backend, so reload groups and use the index
-  const groups = await GetRelayGroups()
-  if (groups[idx]) {
-    await DeleteRelayGroup(groups[idx].groupID)
-    await loadRelayGroups()
-  }
-}
-
-async function StartPrinter() {
-  if (selectedGroup.value !== null) {
-    serviceRunning.value = true
-    await StartPrinterServer()
-    await checkServiceStatus()
-  }
-}
-async function StopPrinter() {
-  serviceRunning.value = false
-  await StopPrintServer()
-  await checkServiceStatus()
-}
-async function checkServiceStatus() {
-  serviceRunning.value = await GetPrinterRunStatus()
-}
-
-
-watch(selectedGroup, async (newVal) => {
-  if (newVal !== null) {
-    console.log('Selected Relay Group:', relayGroups.value[newVal])
-    await SelectRelayGroup(relayGroups.value[newVal])
-  }
-})
-onMounted(async () => {
-  await SetPrinterRelayMode()
-  await loadPrinters()
-  await loadRelayGroups()
-  await checkServiceStatus()
-})
 </script>

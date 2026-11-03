@@ -6,132 +6,161 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"runtime"
+	"sync/atomic"
 
-	"github.com/wailsapp/wails/v2"
-	"github.com/wailsapp/wails/v2/pkg/logger"
-	"github.com/wailsapp/wails/v2/pkg/options"
-	"github.com/wailsapp/wails/v2/pkg/options/assetserver"
-	"github.com/wailsapp/wails/v2/pkg/options/mac"
-	"github.com/wailsapp/wails/v2/pkg/options/windows"
+	"github.com/wailsapp/wails/v3/pkg/application"
+	"github.com/wailsapp/wails/v3/pkg/events"
 )
 
-//go:embed all:frontend/dist/spa
+//go:embed all:frontend/dist
 var assets embed.FS
 
 //go:embed build/appicon.png
-var icon []byte
+var appIcon []byte
 
 func main() {
-	printers, err := QueryInstalledPrinters()
+	dir, err := configDir()
 	if err != nil {
-		fmt.Errorf("Error querying installed printers: %v", err)
+		log.Fatal(err)
 	}
-	for _, v := range printers {
-		fmt.Println(v)
-
-	}
-	configPath, err := getMyAppConfigPath()
+	store, err := OpenStore(filepath.Join(dir, "printEmulator.db"))
 	if err != nil {
-		log.Fatalf("Error getting application config path: %v", err)
+		log.Fatalf("open database: %v", err)
 	}
+	defer store.Close()
 
-	dbFilePath := filepath.Join(configPath, "printEmulator.db")
-	db, err := ConnectSQLLite3(dbFilePath)
-	if err != nil {
-		log.Fatalf("Cannot connect to database: %v", err)
-	}
-	defer db.SQL.Close()
-	// Create an instance of the app structure
-	app := NewApp(db.SQL)
-	// tcp := app.NewTCPServer()
-	// app.tcp = tcp
-	// defer app.tcp.Stop()
+	svc := NewEmulatorService(store)
 
-	// Create application with options
-	err = wails.Run(&options.App{
-		Title:             "Printer_Emulator",
-		Width:             800,
-		Height:            600,
-		MinWidth:          800,
-		MinHeight:         580,
-		MaxWidth:          4096,
-		MaxHeight:         4096,
-		DisableResize:     false,
-		Fullscreen:        false,
-		Frameless:         false,
-		StartHidden:       false,
-		HideWindowOnClose: false,
-		BackgroundColour:  &options.RGBA{R: 255, G: 255, B: 255, A: 255},
-		AssetServer: &assetserver.Options{
-			Assets: assets,
+	var window *application.WebviewWindow
+	app := application.New(application.Options{
+		Name:        "ZPL Printer Emulator",
+		Description: "Emulates a Zebra ZPL printer: preview, forward and relay labels",
+		Icon:        appIcon,
+		Services: []application.Service{
+			application.NewService(svc),
 		},
-		Menu:             nil,
-		Logger:           nil,
-		LogLevel:         logger.DEBUG,
-		OnStartup:        app.startup,
-		OnDomReady:       app.domReady,
-		OnBeforeClose:    app.beforeClose,
-		OnShutdown:       app.shutdown,
-		WindowStartState: options.Normal,
-		Bind: []interface{}{
-			app,
+		Assets: application.AssetOptions{
+			Handler:        application.AssetFileServerFS(assets),
+			Middleware:     svc.history.Middleware,
+			DisableLogging: true,
 		},
-		// Windows platform specific options
-		Windows: &windows.Options{
-			WebviewIsTransparent: false,
-			WindowIsTranslucent:  false,
-			DisableWindowIcon:    false,
-			// DisableFramelessWindowDecorations: false,
-			WebviewUserDataPath: "",
-			ZoomFactor:          0.90,
-			// IsZoomControlEnabled enables the zoom factor to be changed by the user.
-			// IsZoomControlEnabled: true,
-		},
-		// Mac platform specific options
-		Mac: &mac.Options{
-			TitleBar: &mac.TitleBar{
-				TitlebarAppearsTransparent: false,
-				HideTitle:                  false,
-				HideTitleBar:               false,
-				FullSizeContent:            false,
-				UseToolbar:                 false,
-				HideToolbarSeparator:       true,
-			},
-			Appearance:           mac.NSAppearanceNameDarkAqua,
-			WebviewIsTransparent: true,
-			WindowIsTranslucent:  true,
-			About: &mac.AboutInfo{
-				Title:   "Printer_Emulator",
-				Message: "",
-				Icon:    icon,
-			},
+		SingleInstance: singleInstance(func() {
+			if window != nil {
+				window.Show()
+				window.Restore()
+				window.Focus()
+			}
+		}),
+		Mac: application.MacOptions{
+			ApplicationShouldTerminateAfterLastWindowClosed: false,
 		},
 	})
 
-	if err != nil {
+	window = app.Window.NewWithOptions(application.WebviewWindowOptions{
+		Title:            "ZPL Printer Emulator",
+		Width:            1240,
+		Height:           800,
+		MinWidth:         900,
+		MinHeight:        600,
+		BackgroundColour: application.NewRGB(26, 22, 37),
+		URL:              "/",
+		Mac: application.MacWindow{
+			InvisibleTitleBarHeight: 0,
+			Backdrop:                application.MacBackdropNormal,
+		},
+	})
+
+	// Closing the window either quits or, if the user chose it, hides the
+	// window and keeps the printer running in the tray.
+	var quitting atomic.Bool
+	window.RegisterHook(events.Common.WindowClosing, func(e *application.WindowEvent) {
+		if quitting.Load() || !svc.Settings().CloseToTray {
+			quitting.Store(true)
+			app.Quit()
+			return
+		}
+		e.Cancel()
+		window.Hide()
+	})
+
+	setupTray(app, window, svc, &quitting)
+
+	if err := app.Run(); err != nil {
 		log.Fatal(err)
 	}
 }
 
-func getAppDataRoamingPath() (string, error) {
-	configDir, err := os.UserConfigDir()
-	if err != nil {
-		return "", fmt.Errorf("error getting user config directory: %w", err)
+func setupTray(app *application.App, window *application.WebviewWindow, svc *EmulatorService, quitting *atomic.Bool) {
+	tray := app.SystemTray.New()
+	tray.SetIcon(appIcon)
+	tray.SetTooltip("ZPL Printer Emulator")
+
+	menu := app.NewMenu()
+	menu.Add("Show Printer Emulator").OnClick(func(*application.Context) {
+		window.Show()
+		window.Restore()
+		window.Focus()
+	})
+	menu.AddSeparator()
+	status := menu.Add("Printer stopped").SetEnabled(false)
+	toggle := menu.Add("Start printer")
+	toggle.OnClick(func(*application.Context) {
+		if svc.Status().Running {
+			svc.Stop()
+		} else {
+			svc.Start()
+		}
+	})
+	menu.AddSeparator()
+	menu.Add("Quit").OnClick(func(*application.Context) {
+		quitting.Store(true)
+		app.Quit()
+	})
+	tray.SetMenu(menu)
+	tray.OnClick(func() {
+		window.Show()
+		window.Restore()
+		window.Focus()
+	})
+
+	svc.onStatus = func(st ServerStatus) {
+		if st.Running {
+			status.SetLabel("Listening on " + st.Address)
+			toggle.SetLabel("Stop printer")
+			tray.SetTooltip("ZPL Printer Emulator — " + st.Address)
+		} else {
+			status.SetLabel("Printer stopped")
+			toggle.SetLabel("Start printer")
+			tray.SetTooltip("ZPL Printer Emulator — stopped")
+		}
+		menu.Update()
 	}
-	return configDir, nil
 }
-func getMyAppConfigPath() (string, error) {
-	appDataPath, err := getAppDataRoamingPath()
+
+// singleInstance focuses the running window when the app is started a
+// second time, so two emulators never fight over the port. On Linux it
+// needs a D-Bus session; without one it is skipped rather than failing.
+func singleInstance(focus func()) *application.SingleInstanceOptions {
+	if runtime.GOOS == "linux" && os.Getenv("DBUS_SESSION_BUS_ADDRESS") == "" {
+		return nil
+	}
+	return &application.SingleInstanceOptions{
+		UniqueID:               "com.datamagik.zplprinteremulator",
+		OnSecondInstanceLaunch: func(application.SecondInstanceData) { focus() },
+	}
+}
+
+// configDir is the folder holding the database. It is the same folder 2.x
+// used, so existing settings and printers carry over.
+func configDir() (string, error) {
+	base, err := os.UserConfigDir()
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("find config folder: %w", err)
 	}
-
-	myAppPath := filepath.Join(appDataPath, "DataGenie")
-
-	// Create the directory if it doesn't exist
-	if err := os.MkdirAll(myAppPath, 0755); err != nil {
-		return "", fmt.Errorf("error creating application config directory: %w", err)
+	dir := filepath.Join(base, "DataGenie")
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return "", fmt.Errorf("create config folder: %w", err)
 	}
-
-	return myAppPath, nil
+	return dir, nil
 }
