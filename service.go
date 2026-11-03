@@ -18,7 +18,7 @@ import (
 )
 
 // AppVersion is shown in the UI and written into the build metadata.
-const AppVersion = "3.0.0"
+const AppVersion = "3.0.1"
 
 // autostartID is the registry value name 2.x used, so an existing
 // "start at login" entry keeps working after the upgrade.

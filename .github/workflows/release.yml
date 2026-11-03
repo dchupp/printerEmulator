@@ -2,12 +2,23 @@ name: Build & release
 
 # Every pull request builds and test-installs all packages.
 # Pushing a tag such as v3.0.0 also publishes them on the Releases page.
+# Running the workflow by hand with a version (Actions → Build & release →
+# Run workflow) does the same and creates the tag on the chosen branch.
 on:
   pull_request:
   push:
     branches: [master]
     tags: ['v*']
   workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version to publish, e.g. v3.0.1 (leave empty to only build)'
+        required: false
+        default: ''
+      target:
+        description: 'Branch or commit the new tag points at'
+        required: false
+        default: master
 
 permissions:
   contents: read
@@ -15,6 +26,9 @@ permissions:
 env:
   WAILS_VERSION: v3.1.0
   APP: ZPL-Printer-Emulator
+  # The release version: the pushed tag, the version typed in when run by
+  # hand, or "dev" for pull requests.
+  VERSION: ${{ github.ref_type == 'tag' && github.ref_name || inputs.version || 'dev' }}
 
 jobs:
   test:
@@ -52,7 +66,7 @@ jobs:
       - name: Collect files
         shell: pwsh
         run: |
-          $v = "${{ github.ref_type == 'tag' && github.ref_name || 'dev' }}"
+          $v = $env:VERSION
           New-Item -ItemType Directory -Force dist | Out-Null
           Copy-Item bin\PrinterEmulator-amd64-installer.exe "dist\$env:APP-$v-windows-amd64-installer.exe"
           Copy-Item bin\PrinterEmulator.exe "dist\$env:APP-$v-windows-amd64-portable.exe"
@@ -85,7 +99,7 @@ jobs:
           wails3 task linux:create:rpm
       - name: Collect files
         run: |
-          v="${{ github.ref_type == 'tag' && github.ref_name || 'dev' }}"
+          v="$VERSION"
           mkdir -p dist
           cp bin/PrinterEmulator.deb "dist/$APP-$v-ubuntu-amd64.deb"
           cp bin/PrinterEmulator.rpm "dist/$APP-$v-fedora-x86_64.rpm"
@@ -131,7 +145,7 @@ jobs:
 
   release:
     name: Publish release
-    if: github.ref_type == 'tag'
+    if: github.ref_type == 'tag' || inputs.version != ''
     needs: [test, windows, install-ubuntu, install-fedora]
     runs-on: ubuntu-24.04
     permissions:
@@ -145,7 +159,9 @@ jobs:
         run: cd dist && sha256sum * > SHA256SUMS.txt && cat SHA256SUMS.txt
       - uses: softprops/action-gh-release@v2
         with:
-          name: ZPL Printer Emulator ${{ github.ref_name }}
+          tag_name: ${{ env.VERSION }}
+          target_commitish: ${{ github.ref_type == 'tag' && github.sha || inputs.target }}
+          name: ZPL Printer Emulator ${{ env.VERSION }}
           generate_release_notes: true
           files: dist/*
           body: |
@@ -153,9 +169,9 @@ jobs:
 
             | System | File |
             |---|---|
-            | Windows 10/11 | `${{ env.APP }}-${{ github.ref_name }}-windows-amd64-installer.exe` (or the `-portable.exe`, no install needed) |
-            | Ubuntu 24.04+ / Debian 13+ | `${{ env.APP }}-${{ github.ref_name }}-ubuntu-amd64.deb` — `sudo apt install ./<file>.deb` |
-            | Fedora 40+ | `${{ env.APP }}-${{ github.ref_name }}-fedora-x86_64.rpm` — `sudo dnf install ./<file>.rpm` |
+            | Windows 10/11 | `${{ env.APP }}-${{ env.VERSION }}-windows-amd64-installer.exe` (or the `-portable.exe`, no install needed) |
+            | Ubuntu 24.04+ / Debian 13+ | `${{ env.APP }}-${{ env.VERSION }}-ubuntu-amd64.deb` — `sudo apt install ./<file>.deb` |
+            | Fedora 40+ | `${{ env.APP }}-${{ env.VERSION }}-fedora-x86_64.rpm` — `sudo dnf install ./<file>.rpm` |
 
             Labels are rendered locally; no internet connection is needed.
             The Windows files are not code-signed yet, so SmartScreen may ask you to confirm ("More info" → "Run anyway").

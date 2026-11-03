@@ -95,6 +95,8 @@ Pushing a version tag builds the Windows installer and the Ubuntu and Fedora pac
 git tag v3.0.0 && git push origin v3.0.0
 ```
 
+Or, without pushing a tag: **Actions → Build & release → Run workflow**, enter the version (e.g. `v3.0.1`) and leave the target as `master`; the workflow creates the tag and the release.
+
 Every pull request runs the same builds without publishing.
 
 ## Develop
